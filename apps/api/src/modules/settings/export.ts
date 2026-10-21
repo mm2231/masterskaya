@@ -58,6 +58,7 @@ export interface ImportReport {
   tasks: number;
   documents: number;
   payments: number;
+  settings: number;
   skipped: number;
 }
 
@@ -78,8 +79,27 @@ export async function importAll(
     tasks: 0,
     documents: 0,
     payments: 0,
+    settings: 0,
     skipped: 0,
   };
+
+  // Реквизиты мастерской и прочие настройки: обновляем существующие записи
+  // по ключу, чтобы реквизиты перенеслись на новый компьютер.
+  for (const row of (data.settings ?? []) as Array<Record<string, unknown>>) {
+    const key = String(row.key ?? '').trim();
+    if (!key) continue;
+    const value = row.value;
+    if (value === undefined) continue;
+    await database
+      .insert(settings)
+      .values({ key, value: value as never, updatedAt: new Date().toISOString() })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { value: value as never, updatedAt: new Date().toISOString() },
+      })
+      .run();
+    report.settings += 1;
+  }
 
   // Карта «старый id клиента → новый id».
   const clientMap = new Map<number, number>();

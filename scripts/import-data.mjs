@@ -80,6 +80,33 @@ for (const table of ORDER) {
   let skipped = 0;
 
   for (const row of rows) {
+    // Настройки обновляем по ключу: реквизиты мастерской должны переехать
+    // на новый компьютер, а не молча пропускаться.
+    if (table === 'settings') {
+      const key = row.key;
+      if (!key) {
+        skipped += 1;
+        continue;
+      }
+      const columns2 = db.prepare(`pragma table_info(${table})`).all().map((r) => r.name);
+      const values2 = columns2
+        .filter((column) => row[column] !== undefined)
+        .map((column) => row[column]);
+      const placeholders2 = columns2
+        .filter((column) => row[column] !== undefined)
+        .map(() => '?')
+        .join(', ');
+      if (!placeholders2) continue;
+      db.prepare(
+        `insert into ${table} (${columns2
+          .filter((column) => row[column] !== undefined)
+          .join(', ')}) values (${placeholders2})
+         on conflict(key) do update set value = excluded.value`,
+      ).run(...values2);
+      inserted += 1;
+      continue;
+    }
+
     // Клиенты сверяем по телефону, заказы — по номеру, остальное — по id.
     let duplicate = false;
     if (table === 'clients' && row.phone) {
