@@ -198,7 +198,7 @@ export function SettingsPage() {
                 ) : null}
                 <div style={{ marginTop: 6 }}>
                   {update.data.available ? (
-                    <span style={{ color: 'var(--accent)' }}>
+                    <span style={{ color: 'var(--primary)' }}>
                       Доступно обновлений: {update.data.remote?.behind ?? 0}
                       {update.data.remote?.subject
                         ? ` — ${update.data.remote.subject}`

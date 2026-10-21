@@ -474,6 +474,24 @@ table.data .nowrap {
   margin-bottom: 5px;
 }
 
+/* Кнопка-ссылка внутри подписи поля. */
+.link-btn {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:hover {
+  color: var(--primary-hover);
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -628,6 +646,19 @@ table.data .nowrap {
 
 .task-title {
   font-weight: 550;
+}
+
+/* Заголовок задачи кликабельный: открывает редактирование. */
+.task-title-editable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+
+.task-title-editable:hover {
+  background: var(--bg-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .task-meta {

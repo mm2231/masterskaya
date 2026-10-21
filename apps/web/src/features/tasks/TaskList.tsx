@@ -4,6 +4,7 @@
  * Используется и на дашборде, и в карточке заказа.
  */
 
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { describeDue } from '@masterskaya/shared';
 import { Link } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { useToast } from '../../components/Toast';
 import { api } from '../../lib/api';
 import { formatPhone } from '../../lib/format';
 import type { Task } from '../../lib/types';
+import { EditTaskModal } from './EditTaskModal';
 
 export function TaskList({
   tasks,
@@ -23,6 +25,9 @@ export function TaskList({
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+
+  // Задача, которую сейчас редактируем (null — модалка закрыта).
+  const [editing, setEditing] = useState<Task | null>(null);
 
   const toggle = useMutation({
     mutationFn: ({ id, done }: { id: number; done: boolean }) =>
@@ -45,7 +50,8 @@ export function TaskList({
   });
 
   return (
-    <div className="task-list">
+    <>
+      <div className="task-list">
       {tasks.map((task) => {
         const order = task.order;
         const phone = order?.clientPhone;
@@ -62,7 +68,13 @@ export function TaskList({
             />
 
             <div className="task-body">
-              <div className="task-title">{task.title}</div>
+              <div
+                className="task-title task-title-editable"
+                onClick={() => setEditing(task)}
+                title="Изменить задачу"
+              >
+                {task.title}
+              </div>
               {showOrder && order ? (
                 <div className="task-meta">
                   <Link className="row-link" to={`/orders/${order.id}`}>
@@ -91,6 +103,14 @@ export function TaskList({
                 ) : null}
                 <button
                   type="button"
+                  className="btn sm"
+                  onClick={() => setEditing(task)}
+                  title="Изменить задачу"
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
                   className="btn sm danger"
                   onClick={() => {
                     if (window.confirm('Удалить задачу?')) remove.mutate(task.id);
@@ -104,6 +124,8 @@ export function TaskList({
           </div>
         );
       })}
-    </div>
+      {editing ? <EditTaskModal task={editing} onClose={() => setEditing(null)} /> : null}
+      </div>
+    </>
   );
 }

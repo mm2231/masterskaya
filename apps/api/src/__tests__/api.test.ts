@@ -477,6 +477,44 @@ describe('задачи', () => {
     expect(undone.json().task.doneAt).toBeNull();
   });
 
+  it('изменяет текст и срок задачи', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Позвонить клиенту', dueAt: '2026-10-21' },
+    });
+    const taskId = created.json().task.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: { title: 'Напомнить о готовности', dueAt: '2026-11-01T16:00' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().task.title).toBe('Напомнить о готовности');
+    expect(response.json().task.dueAt).toBe('2026-11-01 16:00:00');
+  });
+
+  it('снимает срок задачи при пустом значении', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Заказать деталь', dueAt: '2026-10-21' },
+    });
+    const taskId = created.json().task.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: { dueAt: '' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().task.dueAt).toBeNull();
+    expect(response.json().task.overdue).toBe(false);
+  });
+
   it('удаляет задачу', async () => {
     const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
     const created = await app.inject({
