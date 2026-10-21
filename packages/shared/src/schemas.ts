@@ -88,14 +88,7 @@ export const documentInputSchema = z.object({
 
 export type DocumentInput = z.infer<typeof documentInputSchema>;
 
-export const taskInputSchema = z.object({
-  orderId: z.number().int().positive().optional(),
-  title: z.string().trim().min(1, 'Укажите задачу').max(300),
-  dueAt: z.string().trim().max(40).optional().or(z.literal('')),
-  done: z.boolean().default(false),
-});
-
-export type TaskInput = z.infer<typeof taskInputSchema>;
+// Схема задач живёт в tasks.ts — там же логика сроков и просрочки.
 
 export const eventInputSchema = z.object({
   orderId: z.number().int().positive(),

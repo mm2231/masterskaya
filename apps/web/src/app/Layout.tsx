@@ -12,12 +12,15 @@ interface NavEntry {
   icon: string;
   label: string;
   /** Показывать счётчик заказов в этом статусе. */
-  countKey?: string;
+  countKey?: 'open';
+  /** Показывать счётчик задач (просроченные + сегодняшние). */
+  taskCount?: boolean;
 }
 
 const NAV: NavEntry[] = [
   { to: '/', icon: '📊', label: 'Дашборд' },
   { to: '/orders', icon: '🔧', label: 'Заказы', countKey: 'open' },
+  { to: '/tasks', icon: '✅', label: 'Задачи', taskCount: true },
   { to: '/clients', icon: '👥', label: 'Клиенты' },
   { to: '/documents', icon: '📄', label: 'Акты' },
   { to: '/finance', icon: '💰', label: 'Финансы' },
@@ -53,6 +56,13 @@ export function Layout() {
     refetchInterval: 30_000,
   });
 
+  // Счётчик задач: просроченные и сегодняшние.
+  const { data: taskCounts } = useQuery({
+    queryKey: ['task-counts'],
+    queryFn: () => api.get<{ overdue: number; today: number }>('/api/tasks/counts'),
+    refetchInterval: 60_000,
+  });
+
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
@@ -64,6 +74,8 @@ export function Layout() {
     (counts?.counts.waiting_parts ?? 0) +
     (counts?.counts.ready ?? 0) +
     (counts?.counts.warranty ?? 0);
+
+  const taskTotal = (taskCounts?.overdue ?? 0) + (taskCounts?.today ?? 0);
 
   const title = PAGE_TITLES[location.pathname] ?? titleFromPath(location.pathname);
 
@@ -86,6 +98,18 @@ export function Layout() {
               <span>{entry.label}</span>
               {entry.countKey === 'open' && openOrders > 0 ? (
                 <span className="nav-item-badge">{openOrders}</span>
+              ) : null}
+              {entry.taskCount && taskTotal > 0 ? (
+                <span
+                  className="nav-item-badge"
+                  style={
+                    (taskCounts?.overdue ?? 0) > 0
+                      ? { background: 'var(--danger)', color: '#fff' }
+                      : undefined
+                  }
+                >
+                  {taskTotal}
+                </span>
               ) : null}
             </NavLink>
           ))}

@@ -414,6 +414,125 @@ describe('финансы', () => {
   });
 });
 
+describe('задачи', () => {
+  it('создаёт задачу с привязкой к заказу', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Позвонить клиенту', dueAt: '2026-10-21T16:00' },
+    });
+    expect(response.statusCode).toBe(201);
+    const task = response.json().task;
+    expect(task.title).toBe('Позвонить клиенту');
+    expect(task.dueAt).toBe('2026-10-21 16:00:00');
+    // В ответе — контекст заказа, иначе задача бесполезна.
+    expect(task.order.number).toBe(order.number);
+  });
+
+  it('не создаёт задачу без названия', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: '   ' },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('не создаёт задачу для несуществующего заказа', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: 999999, title: 'Позвонить' },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('отмечает задачу выполненной и ставит время', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Заказать деталь' },
+    });
+    const taskId = created.json().task.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: { done: true },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().task.done).toBe(true);
+    expect(response.json().task.doneAt).toBeTruthy();
+
+    // Снятие отметки убирает время выполнения.
+    const undone = await app.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: { done: false },
+    });
+    expect(undone.json().task.doneAt).toBeNull();
+  });
+
+  it('удаляет задачу', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Временная задача' },
+    });
+    const taskId = created.json().task.id;
+
+    const response = await app.inject({ method: 'DELETE', url: `/api/tasks/${taskId}` });
+    expect(response.statusCode).toBe(200);
+
+    const check = await app.inject({ method: 'GET', url: `/api/tasks/${taskId}` });
+    expect(check.statusCode).toBe(404);
+  });
+
+  it('удаляет задачи вместе с заказом', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Позвонить клиенту' },
+    });
+
+    await app.inject({ method: 'DELETE', url: `/api/orders/${order.id}` });
+
+    const list = await app.inject({
+      method: 'GET',
+      url: `/api/tasks?orderId=${order.id}`,
+    });
+    expect(list.json().items).toHaveLength(0);
+  });
+
+  it('считает просроченные и сегодняшние задачи', async () => {
+    const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Просроченная', dueAt: yesterday },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/tasks',
+      payload: { orderId: order.id, title: 'Сегодняшняя', dueAt: today },
+    });
+
+    const counts = await app.inject({ method: 'GET', url: '/api/tasks/counts' });
+    expect(counts.json().overdue).toBeGreaterThan(0);
+    expect(counts.json().today).toBeGreaterThan(0);
+    expect(counts.json().open).toBeGreaterThan(0);
+  });
+});
+
 describe('экспорт и импорт данных', () => {
   it('выгружает все данные в JSON', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/settings/export' });

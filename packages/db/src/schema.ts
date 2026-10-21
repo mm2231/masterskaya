@@ -147,6 +147,7 @@ export const orderTasks = sqliteTable(
   (table) => ({
     orderIdx: index('idx_tasks_order').on(table.orderId),
     doneIdx: index('idx_tasks_done').on(table.done),
+    dueIdx: index('idx_tasks_due').on(table.dueAt),
   }),
 );
 

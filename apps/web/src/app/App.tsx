@@ -11,6 +11,7 @@ import { FinancePage } from '../pages/FinancePage';
 import { OrderCardPage } from '../pages/OrderCardPage';
 import { OrdersPage } from '../pages/OrdersPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { TasksPage } from '../pages/TasksPage';
 import { PrintDocument } from '../print/PrintDocument';
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderCardPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/clients/:id" element={<ClientCardPage />} />
         <Route path="/documents" element={<DocumentsPage />} />

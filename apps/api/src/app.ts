@@ -15,6 +15,7 @@ import { registerFinanceRoutes } from './modules/finance/routes.js';
 import { registerNotifyRoutes } from './modules/notify/routes.js';
 import { registerOrderRoutes } from './modules/orders/routes.js';
 import { registerSettingsRoutes } from './modules/settings/routes.js';
+import { registerTaskRoutes } from './modules/tasks/routes.js';
 
 export interface BuildOptions {
   env: Env;
@@ -51,6 +52,7 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   await registerDocumentRoutes(app);
   await registerFinanceRoutes(app);
   await registerNotifyRoutes(app);
+  await registerTaskRoutes(app);
 
   // Собранный фронт: раздаём как статику, SPA-маршруты — на index.html.
   const webRoot = options.webRoot ?? resolve(repoRoot, 'apps/web/dist');

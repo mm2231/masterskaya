@@ -9,12 +9,14 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useToast } from '../components/Toast';
 import { api } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
-import type { DocumentRow, OrderCard, Payment } from '../lib/types';
+import type { DocumentRow, OrderCard, Payment, TaskListResponse } from '../lib/types';
 import { OrderTab } from '../features/orders/OrderTab';
 import { CreateDocumentButton } from '../features/orders/CreateDocumentButton';
 import { NotifyButtons } from '../features/orders/NotifyButtons';
+import { TaskList } from '../features/tasks/TaskList';
+import { NewTaskModal } from '../features/tasks/NewTaskModal';
 
-type Tab = 'order' | 'history' | 'documents' | 'money';
+type Tab = 'order' | 'history' | 'documents' | 'money' | 'tasks';
 
 export function OrderCardPage() {
   const { id } = useParams();
@@ -23,6 +25,7 @@ export function OrderCardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('order');
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
 
   const card = useQuery({
     queryKey: ['order', orderId],
@@ -37,6 +40,11 @@ export function OrderCardPage() {
   const payments = useQuery({
     queryKey: ['order-payments'],
     queryFn: () => api.get<{ items: Payment[] }>('/api/finance/payments?limit=200'),
+  });
+
+  const orderTasks = useQuery({
+    queryKey: ['tasks', 'order', orderId],
+    queryFn: () => api.get<TaskListResponse>(`/api/tasks?orderId=${orderId}`),
   });
 
   const patch = useMutation({
@@ -126,6 +134,7 @@ export function OrderCardPage() {
             ['history', `История (${history.length})`],
             ['documents', `Акты (${documents.data?.items.length ?? 0})`],
             ['money', `Деньги (${orderPayments.length})`],
+            ['tasks', `Задачи (${orderTasks.data?.items.filter((task) => !task.done).length ?? 0})`],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -242,6 +251,37 @@ export function OrderCardPage() {
             )}
           </div>
         </section>
+      ) : null}
+
+      {tab === 'tasks' ? (
+        <section className="panel">
+          <div className="panel-head">
+            ✅ Задачи по заказу
+            <button
+              type="button"
+              className="btn sm"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setTaskModalOpen(true)}
+            >
+              ＋ Задача
+            </button>
+          </div>
+          <div className="panel-body">
+            {(orderTasks.data?.items.length ?? 0) === 0 ? (
+              <EmptyState
+                icon="✅"
+                title="Задач нет"
+                hint="Например: «Позвонить клиенту» или «Заказать деталь»"
+              />
+            ) : (
+              <TaskList tasks={orderTasks.data?.items ?? []} showOrder={false} />
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {taskModalOpen ? (
+        <NewTaskModal orderId={orderId} onClose={() => setTaskModalOpen(false)} />
       ) : null}
     </>
   );

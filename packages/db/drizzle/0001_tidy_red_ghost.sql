@@ -1,0 +1,1 @@
+CREATE INDEX `idx_tasks_due` ON `order_tasks` (`due_at`);

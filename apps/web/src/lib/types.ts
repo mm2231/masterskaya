@@ -144,7 +144,42 @@ export interface FinanceSummary {
   expensesByCategory: { category: string | null; amount: number; count: number }[];
 }
 
-/** Сводка за текущий день: выданные заказы и прибыль за день. */
+/** Задача по заказу с контекстом заказа. */
+export interface Task {
+  id: number;
+  orderId: number;
+  title: string;
+  dueAt: string | null;
+  done: boolean;
+  doneAt: string | null;
+  createdAt: string;
+  overdue: boolean;
+  isToday: boolean;
+  overdueDays: number;
+  order: {
+    id: number;
+    number: string;
+    clientName: string | null;
+    clientPhone: string | null;
+    deviceLabel: string | null;
+    status: string;
+  } | null;
+}
+
+export interface TaskListResponse {
+  items: Task[];
+  counts: { overdue: number; today: number };
+}
+
+/** Счётчики задач: просроченные, на сегодня, всего открытых и выполненных. */
+export interface TaskCounts {
+  overdue: number;
+  today: number;
+  open: number;
+  done: number;
+}
+
+/** Заказ, выданный сегодня. */
 export interface TodayOrder {
   id: number;
   number: string;
@@ -158,6 +193,7 @@ export interface TodayOrder {
   workDescription: string | null;
 }
 
+/** Сводка за текущий день: выданные заказы и прибыль за день. */
 export interface TodayData {
   date: string;
   summary: PeriodSummary;
