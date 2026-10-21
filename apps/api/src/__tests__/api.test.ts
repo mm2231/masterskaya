@@ -567,4 +567,67 @@ describe('экспорт и импорт данных', () => {
     expect(second.json().report.clients).toBe(0);
     expect(second.json().report.orders).toBe(0);
   });
+
+  it('переносит реквизиты мастерской при импорте', async () => {
+    // Реквизиты из выгрузки должны записаться — иначе на новом компьютере
+    // в актах были бы пустые поля.
+    const payload = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      clients: [],
+      orders: [],
+      orderEvents: [],
+      orderTasks: [],
+      documents: [],
+      payments: [],
+      expenseCategories: [],
+      settings: [
+        {
+          key: 'workshop',
+          value: {
+            name: 'Перенесённая мастерская',
+            owner: 'Сидоров',
+            unp: '999',
+            address: 'ул. Новая, 5',
+            phone: '+375290000000',
+          },
+        },
+      ],
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/settings/import',
+      payload,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().report.settings).toBe(1);
+
+    const workshop = await app.inject({ method: 'GET', url: '/api/settings/workshop' });
+    expect(workshop.json().workshop.name).toBe('Перенесённая мастерская');
+    expect(workshop.json().workshop.phone).toBe('+375290000000');
+
+    // Возвращаем как было.
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings/workshop',
+      payload: {
+        name: 'Тестовая мастерская',
+        owner: 'Иван',
+        unp: '123456',
+        address: 'ул. Тестовая, 1',
+        phone: '+375291234567',
+      },
+    });
+  });
+});
+
+describe('проверка обновлений', () => {
+  it('отвечает о состоянии репозитория', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/settings/update' });
+    expect(response.statusCode).toBe(200);
+    // В тестовой папке git-репозитория нет — скрипт честно об этом сообщает.
+    expect(typeof response.json().available).toBe('boolean');
+    expect(typeof response.json().reason).toBe('string');
+  });
 });

@@ -112,6 +112,23 @@ function check() {
 }
 
 
+/** Порт, на котором работало приложение: сначала окружение, потом .env. */
+function resolvePort() {
+  return process.env.PORT || readEnvValue('PORT') || '8080';
+}
+
+/** Занял ли кто-то порт? */
+function portBusy(port) {
+  try {
+    const output = execFileSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], {
+      encoding: 'utf-8',
+    });
+    return output.trim().split('\n').filter(Boolean).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Остановить работающий сервер (по PID-файлу). */
 function stopServer() {
   const pidFile = join(appRoot, 'data', 'app.pid');
@@ -192,8 +209,14 @@ if (mode === 'install') {
     say('Собираю приложение…');
     run('npm', ['run', 'build']);
 
-    const port = readEnvValue('PORT') || '8080';
+    const port = resolvePort();
     stopServer();
+
+    if (portBusy(port)) {
+      say(`⚠ Порт ${port} занят другой программой — сервер не сможет запуститься.`);
+      say('  Освободите порт и запустите приложение вручную.');
+    }
+
     startServer(port);
 
     const after = currentCommit();

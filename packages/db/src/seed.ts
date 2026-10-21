@@ -6,7 +6,6 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { nowSql } from '@masterskaya/shared';
 
 import { openDatabase, type AppDatabase } from './connection.js';
 import { databasePath, loadEnv } from './paths.js';
@@ -75,13 +74,13 @@ const DEFAULT_TEMPLATES = [
 
 /** Наполнить базу начальными данными. */
 export async function seedDatabase(db: AppDatabase, workshop: WorkshopInfo): Promise<void> {
+  // Реквизиты записываются только если их ещё нет: иначе каждый запуск
+  // перезаписывал бы то, что мастер настроил в приложении или перенёс
+  // из другой машины, пустыми значениями из .env.
   await db
     .insert(settings)
     .values({ key: 'workshop', value: workshop })
-    .onConflictDoUpdate({
-      target: settings.key,
-      set: { value: workshop, updatedAt: nowSql() },
-    })
+    .onConflictDoNothing({ target: settings.key })
     .run();
 
   for (const category of DEFAULT_EXPENSE_CATEGORIES) {
