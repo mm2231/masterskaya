@@ -1,0 +1,32 @@
+{
+  "name": "masterskaya",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CRM мастерской по ремонту телефонов: заказы, акты, клиенты, финансы",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @masterskaya/api",
+    "dev:api": "npm run dev --workspace @masterskaya/api",
+    "dev:web": "npm run dev --workspace @masterskaya/web",
+    "build": "npm run build --workspace @masterskaya/web && npm run build --workspace @masterskaya/api",
+    "start": "npm run start --workspace @masterskaya/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @masterskaya/db",
+    "db:migrate": "npm run db:migrate --workspace @masterskaya/db",
+    "db:seed": "npm run db:seed --workspace @masterskaya/db",
+    "db:reset": "npm run db:reset --workspace @masterskaya/db",
+    "import:legacy": "npm run import:legacy --workspace @masterskaya/api",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

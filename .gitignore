@@ -1,0 +1,28 @@
+# Зависимости
+node_modules/
+
+# Сборка
+dist/
+build/
+*.tsbuildinfo
+
+# Данные приложения (локальная БД и загруженные файлы)
+data/
+!data/.gitkeep
+
+# Настройки (содержат реквизиты и пароль)
+.env
+.env.local
+
+# Бэкапы
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ОС и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
