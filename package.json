@@ -24,6 +24,9 @@
     "db:seed": "npm run db:seed --workspace @masterskaya/db",
     "db:reset": "npm run db:reset --workspace @masterskaya/db",
     "import:legacy": "npm run import:legacy --workspace @masterskaya/api",
+    "build:portable": "node scripts/build-portable.mjs",
+    "data:export": "node scripts/export-data.mjs",
+    "data:import": "node scripts/import-data.mjs",
     "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {

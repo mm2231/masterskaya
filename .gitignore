@@ -1,3 +1,6 @@
+# Переносимые пакеты (собираются скриптом build:portable)
+portable/
+
 # Зависимости
 node_modules/
 

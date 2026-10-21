@@ -1,12 +1,43 @@
 /** Точка входа: конфиг → БД → сервер. */
 
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
+import { dirname, join } from 'node:path';
 
 import { buildApp } from './app.js';
 import { initDb } from './db.js';
 import { databasePath, loadEnv, type Env } from './env.js';
 import { applyMigrations, seedDatabase } from '@masterskaya/db';
 import { startBackupScheduler } from './backup.js';
+
+/**
+ * Файл с PID процесса — по нему приложение останавливается скриптом.
+ *
+ * Кладём рядом с базой данных: в переносимом пакете база лежит в папке data
+ * на уровень выше кода, и PID-файл должен быть там же.
+ */
+function pidFilePath(env: Env): string {
+  return join(dirname(databasePath(env)), 'app.pid');
+}
+
+/** Записать PID, чтобы скрипт остановки знал, кого завершать. */
+function writePidFile(env: Env): void {
+  const path = pidFilePath(env);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, String(process.pid), 'utf-8');
+}
+
+/** Убрать файл PID при остановке. */
+function removePidFile(env: Env): void {
+  const path = pidFilePath(env);
+  if (existsSync(path)) {
+    try {
+      rmSync(path);
+    } catch {
+      // Файл может быть занят — не критично.
+    }
+  }
+}
 
 async function main(): Promise<void> {
   const env: Env = loadEnv();
@@ -28,6 +59,21 @@ async function main(): Promise<void> {
   startBackupScheduler(env);
 
   await app.listen({ port: env.PORT, host: env.HOST });
+  writePidFile(env);
+
+  // При выходе убираем файл PID и закрываем сервер корректно.
+  const shutdown = async () => {
+    removePidFile(env);
+    try {
+      await app.close();
+    } catch {
+      // Уже закрыт.
+    }
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+  process.on('exit', () => removePidFile(env));
 
   const addresses = localAddresses();
   const lines = [
