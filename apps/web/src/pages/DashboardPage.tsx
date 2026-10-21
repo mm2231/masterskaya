@@ -1,34 +1,61 @@
-/** Дашборд: показатели за период, заказы в работе, быстрые действия. */
+/**
+ * Дашборд: показатели за период и заказы по всем этапам.
+ *
+ * В панели «Этапы работы» видны все незакрытые заказы. У каждого есть
+ * кнопки-переходы: статус меняется прямо из дашборда, без открытия
+ * карточки.
+ */
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ORDER_STATUSES, statusLabel } from '@masterskaya/shared';
 
-import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState } from '../components/EmptyState';
+import { StatusBadge } from '../components/StatusBadge';
+import { useToast } from '../components/Toast';
 import { api, query } from '../lib/api';
 import { formatDateTime, formatMoney, formatPhone } from '../lib/format';
 import type { FinanceSummary, Order } from '../lib/types';
+import { StatusTransition } from '../features/orders/StatusTransition';
+
+/** Этапы, на которых заказ ещё в работе. */
+const OPEN_STATUSES = ORDER_STATUSES.filter(
+  (item) => item.code !== 'issued' && item.code !== 'declined',
+).map((item) => item.code);
 
 export function DashboardPage() {
+  const [stage, setStage] = useState('');
+
   const summary = useQuery({
     queryKey: ['finance-summary'],
     queryFn: () => api.get<FinanceSummary>('/api/finance/summary'),
   });
 
+  // Все незакрытые заказы — одним запросом.
   const open = useQuery({
-    queryKey: ['orders', 'open'],
+    queryKey: ['dashboard', 'open'],
     queryFn: () =>
       api.get<{ items: Order[]; total: number }>(
-        query({ status: 'new', limit: 8, sort: 'date_desc' }),
+        '/api/orders' + query({ statuses: OPEN_STATUSES.join(','), limit: 100 }),
       ),
   });
 
-  const ready = useQuery({
-    queryKey: ['orders', 'ready'],
-    queryFn: () => api.get<{ items: Order[]; total: number }>('/api/orders' + query({ status: 'ready', limit: 8 })),
+  // Выданные заказы — недавние, для контроля потока.
+  const issued = useQuery({
+    queryKey: ['dashboard', 'issued'],
+    queryFn: () =>
+      api.get<{ items: Order[]; total: number }>(
+        '/api/orders' + query({ status: 'issued', limit: 8 }),
+      ),
   });
 
   const s = summary.data?.summary;
+  const allOpen = open.data?.items ?? [];
+  const items = stage ? allOpen.filter((order) => order.status === stage) : allOpen;
+
+  // Сколько заказов на каждом этапе.
+  const byStage = (code: string) => allOpen.filter((order) => order.status === code).length;
 
   return (
     <>
@@ -43,13 +70,13 @@ export function DashboardPage() {
         <div className="kpi">
           <div className="kpi-label">Выручка за период</div>
           <div className="kpi-value">{formatMoney(s?.revenue ?? 0)}</div>
-          <div className="kpi-hint">с {summary.data?.from} по {summary.data?.to}</div>
+          <div className="kpi-hint">
+            с {summary.data?.from} по {summary.data?.to}
+          </div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Прибыль</div>
-          <div
-            className={`kpi-value ${(s?.profit ?? 0) >= 0 ? 'positive' : 'negative'}`}
-          >
+          <div className={`kpi-value ${(s?.profit ?? 0) >= 0 ? 'positive' : 'negative'}`}>
             {formatMoney(s?.profit ?? 0)}
           </div>
           <div className="kpi-hint">маржа {Math.round(s?.margin ?? 0)}%</div>
@@ -69,20 +96,160 @@ export function DashboardPage() {
           <div className="kpi-value">{formatMoney(s?.averageCheck ?? 0)}</div>
           <div className="kpi-hint">выдано заказов: {s?.issuedCount ?? 0}</div>
         </div>
+        <div className="kpi">
+          <div className="kpi-label">Открытых заказов</div>
+          <div className="kpi-value">{allOpen.length}</div>
+          <div className="kpi-hint">принято, но ещё не выдано</div>
+        </div>
       </div>
+
+
+      <section className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-head">
+          🔧 Заказы по этапам
+          <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--text-muted)' }}>
+            нажмите «→ этап», чтобы перевести заказ
+          </span>
+        </div>
+        <div className="panel-body">
+          <div className="chips">
+            <button
+              type="button"
+              className={`chip ${stage === '' ? 'active' : ''}`}
+              onClick={() => setStage('')}
+            >
+              Все этапы ({allOpen.length})
+            </button>
+            {ORDER_STATUSES.filter(
+              (item) => item.code !== 'issued' && item.code !== 'declined',
+            ).map((item) => (
+              <button
+                key={item.code}
+                type="button"
+                className={`chip ${stage === item.code ? 'active' : ''}`}
+                onClick={() => setStage(item.code)}
+              >
+                {item.label} ({byStage(item.code)})
+              </button>
+            ))}
+          </div>
+
+          {items.length === 0 ? (
+            <EmptyState
+              icon="🔧"
+              title={stage ? `На этапе «${statusLabel(stage)}» заказов нет` : 'Незакрытых заказов нет'}
+              hint="Принятые заказы появятся здесь автоматически"
+            />
+          ) : (
+            <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Устройство</th>
+                    <th>Клиент</th>
+                    <th>Телефон</th>
+                    <th>Этап</th>
+                    <th className="num">Сумма</th>
+                    <th>Принят</th>
+                    <th>Перевести</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((order) => (
+                    <tr key={order.id}>
+                      <td className="nowrap">
+                        <Link className="row-link" to={`/orders/${order.id}`}>
+                          №{order.number}
+                        </Link>
+                      </td>
+                      <td className="nowrap">{order.deviceLabel ?? '—'}</td>
+                      <td>{order.clientName ?? '—'}</td>
+                      <td className="nowrap">{formatPhone(order.clientPhone)}</td>
+                      <td>
+                        <StatusBadge code={order.status} />
+                      </td>
+                      <td className="num">{formatMoney(order.clientTotal)}</td>
+                      <td className="nowrap">{formatDateTime(order.acceptedAt)}</td>
+                      <td>
+                        <StatusTransition orderId={order.id} status={order.status} compact />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="split-even">
         <section className="panel">
-          <div className="panel-head">🆕 Новые заказы</div>
-          <OrderMiniTable orders={open.data?.items ?? []} emptyText="Новых заказов нет" />
+          <div className="panel-head">✅ Готовы к выдаче</div>
+          <ReadyTable orders={allOpen.filter((order) => order.status === 'ready')} />
         </section>
 
         <section className="panel">
-          <div className="panel-head">✅ Готовы к выдаче</div>
-          <OrderMiniTable orders={ready.data?.items ?? []} emptyText="Готовых заказов нет" />
+          <div className="panel-head">🛒 Выданные заказы</div>
+          <OrderMiniTable
+            orders={issued.data?.items.slice(0, 5) ?? []}
+            emptyText="Выданных заказов нет"
+          />
         </section>
       </div>
     </>
+  );
+}
+
+/** Готовые к выдаче: главное действие — выдать заказ (статус → «Выдан»). */
+function ReadyTable({ orders }: { orders: Order[] }) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const issue = useMutation({
+    mutationFn: (orderId: number) => api.patch(`/api/orders/${orderId}`, { status: 'issued' }),
+    onSuccess: () => {
+      toast.show('Заказ выдан', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['order-counts'] });
+      void queryClient.invalidateQueries({ queryKey: ['finance-summary'] });
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
+  });
+
+  if (orders.length === 0) {
+    return <EmptyState icon="✅" title="Готовых заказов нет" />;
+  }
+  return (
+    <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+      <table className="data">
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id}>
+              <td className="nowrap">
+                <Link className="row-link" to={`/orders/${order.id}`}>
+                  №{order.number}
+                </Link>
+              </td>
+              <td className="nowrap">{order.deviceLabel ?? '—'}</td>
+              <td className="nowrap">{formatPhone(order.clientPhone)}</td>
+              <td className="num">{formatMoney(order.clientTotal)}</td>
+              <td>
+                <button
+                  type="button"
+                  className="btn sm primary"
+                  disabled={issue.isPending}
+                  onClick={() => issue.mutate(order.id)}
+                >
+                  Выдать
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -107,7 +274,6 @@ function OrderMiniTable({ orders, emptyText }: { orders: Order[]; emptyText: str
                 <StatusBadge code={order.status} />
               </td>
               <td className="num">{formatMoney(order.clientTotal)}</td>
-              <td className="nowrap muted">{formatDateTime(order.acceptedAt)}</td>
             </tr>
           ))}
         </tbody>

@@ -9,6 +9,8 @@ import { clients, documents, orderEvents, orders } from '@masterskaya/db';
 export interface OrderListFilters {
   q?: string;
   status?: string;
+  /** Несколько статусов через запятую — для панелей дашборда. */
+  statuses?: string;
   clientId?: number;
   from?: string;
   to?: string;
@@ -46,6 +48,15 @@ export async function listOrders(
 
   if (filters.status) {
     conditions.push(eq(orders.status, filters.status));
+  }
+  if (filters.statuses) {
+    const list = filters.statuses
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (list.length) {
+      conditions.push(inArray(orders.status, list));
+    }
   }
   if (filters.clientId) {
     conditions.push(eq(orders.clientId, filters.clientId));

@@ -202,6 +202,26 @@ describe('заказы', () => {
     });
     expect(response.statusCode).toBe(400);
   });
+
+  it('фильтрует по нескольким статусам сразу', async () => {
+    const first = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
+    const second = await createOrder({ clientTotal: 40, costTotal: 20, status: 'new' });
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${first.order.id}`,
+      payload: { status: 'waiting_parts' },
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/orders?statuses=new,waiting_parts&limit=200',
+    });
+    const numbers = response
+      .json()
+      .items.map((item: { number: string }) => item.number);
+    expect(numbers).toContain(first.order.number);
+    expect(numbers).toContain(second.order.number);
+  });
 });
 
 describe('акты', () => {

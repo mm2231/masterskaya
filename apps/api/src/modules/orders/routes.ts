@@ -31,6 +31,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const result = await listOrders(db(), {
       q: query.q?.trim() || undefined,
       status: query.status || undefined,
+      statuses: query.statuses || undefined,
       clientId: query.clientId ? Number(query.clientId) : undefined,
       from: query.from || undefined,
       to: query.to || undefined,
