@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '../components/Toast';
 import { api } from '../lib/api';
-import type { Workshop } from '../lib/types';
+import type { UpdateStatus, Workshop } from '../lib/types';
 
 export function SettingsPage() {
   const toast = useToast();
@@ -33,6 +33,22 @@ export function SettingsPage() {
   });
   const [orderPattern, setOrderPattern] = useState('{YYYY}-{SEQ}');
   const [docPattern, setDocPattern] = useState('{YYYY}-{SEQ}');
+
+  /** Проверка обновлений на GitHub. */
+  const update = useQuery({
+    queryKey: ['update'],
+    queryFn: () => api.get<UpdateStatus>('/api/settings/update'),
+    retry: false,
+  });
+
+  /** Установка обновления — приложение перезапустится само. */
+  const install = useMutation({
+    mutationFn: () => api.post<{ message: string }>('/api/settings/update'),
+    onSuccess: (data) => {
+      toast.show(data.message, 'success');
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
+  });
 
   useEffect(() => {
     if (workshop.data) setForm(workshop.data.workshop);
@@ -160,6 +176,74 @@ export function SettingsPage() {
             </div>
           </div>
         </section>
+        <section className="panel">
+          <div className="panel-head">Обновление приложения</div>
+          <div className="panel-body">
+            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+              Приложение обновляется напрямую с GitHub. База данных при этом не
+              затрагивается — обновляется только код.
+            </p>
+
+            {update.data ? (
+              <div style={{ marginBottom: 14 }}>
+                <div>
+                  <strong>Установленная версия:</strong>{' '}
+                  <code>{update.data.current?.short ?? '—'}</code>{' '}
+                  {update.data.current?.subject ?? ''}
+                </div>
+                {update.data.current?.date ? (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                    от {update.data.current.date.slice(0, 10)}
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 6 }}>
+                  {update.data.available ? (
+                    <span style={{ color: 'var(--accent)' }}>
+                      Доступно обновлений: {update.data.remote?.behind ?? 0}
+                      {update.data.remote?.subject
+                        ? ` — ${update.data.remote.subject}`
+                        : ''}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {update.data.reason ?? 'Установлена последняя версия'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)' }}>
+                {update.isPending ? 'Проверяю обновления…' : 'Нажмите «Проверить», чтобы узнать о новых версиях.'}
+              </p>
+            )}
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={update.isPending}
+                onClick={() => void update.refetch()}
+              >
+                Проверить обновления
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={install.isPending || !update.data?.available}
+                onClick={() => install.mutate()}
+              >
+                {install.isPending ? 'Обновляю…' : 'Установить и перезапустить'}
+              </button>
+            </div>
+            {update.data?.available ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 0 }}>
+                После установки приложение перезапустится, а страница откроется
+                заново.
+              </p>
+            ) : null}
+          </div>
+        </section>
+
         <section className="panel">
           <div className="panel-head">Резервная копия данных</div>
           <div className="panel-body">

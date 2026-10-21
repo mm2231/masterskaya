@@ -1,6 +1,9 @@
 # Переносимые пакеты (собираются скриптом build:portable)
 portable/
 
+# Локально установленный Node.js (install.sh кладёт его сюда)
+.node/
+
 # Зависимости
 node_modules/
 

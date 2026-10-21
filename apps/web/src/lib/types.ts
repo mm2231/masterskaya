@@ -208,3 +208,12 @@ export interface TodayData {
     note: string | null;
   }[];
 }
+
+/** Состояние репозитория: текущий коммит и данные с GitHub. */
+export interface UpdateStatus {
+  ok: boolean;
+  available: boolean;
+  reason?: string;
+  current?: { hash: string; short: string; date: string; subject: string };
+  remote?: { hash: string; subject: string; behind: number };
+}
