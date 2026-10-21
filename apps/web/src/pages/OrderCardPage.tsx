@@ -12,6 +12,7 @@ import { formatDateTime, formatMoney } from '../lib/format';
 import type { DocumentRow, OrderCard, Payment } from '../lib/types';
 import { OrderTab } from '../features/orders/OrderTab';
 import { CreateDocumentButton } from '../features/orders/CreateDocumentButton';
+import { NotifyButtons } from '../features/orders/NotifyButtons';
 
 type Tab = 'order' | 'history' | 'documents' | 'money';
 
@@ -88,6 +89,7 @@ export function OrderCardPage() {
           kind="acceptance"
           label="📥 Создать приёмный акт"
         />
+        <NotifyButtons orderId={orderId} />
       </div>
 
       <div className="kpi-grid">

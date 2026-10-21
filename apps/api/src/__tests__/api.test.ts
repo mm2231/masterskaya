@@ -285,3 +285,39 @@ describe('финансы', () => {
     expect(body[2]).toBe(0xbf);
   });
 });
+
+describe('экспорт и импорт данных', () => {
+  it('выгружает все данные в JSON', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/settings/export' });
+    expect(response.statusCode).toBe(200);
+    const data = response.json();
+    expect(data.version).toBe(2);
+    expect(Array.isArray(data.clients)).toBe(true);
+    expect(Array.isArray(data.orders)).toBe(true);
+  });
+
+  it('импорт не создаёт дубликатов при повторном запуске', async () => {
+    const exported = await app.inject({ method: 'GET', url: '/api/settings/export' });
+    const payload = exported.json();
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/settings/import',
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    // Всё уже было в базе — ничего не создано.
+    expect(first.json().report.clients).toBe(0);
+    expect(first.json().report.orders).toBe(0);
+    expect(first.json().report.events).toBe(0);
+    expect(first.json().report.payments).toBe(0);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/settings/import',
+      payload,
+    });
+    expect(second.json().report.clients).toBe(0);
+    expect(second.json().report.orders).toBe(0);
+  });
+});

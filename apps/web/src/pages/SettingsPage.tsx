@@ -160,6 +160,48 @@ export function SettingsPage() {
             </div>
           </div>
         </section>
+        <section className="panel">
+          <div className="panel-head">Резервная копия данных</div>
+          <div className="panel-body">
+            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+              Выгрузите все данные в JSON-файл — его можно сохранить на флешку или
+              перенести на другой компьютер. Импорт не создаёт дубликаты: клиенты
+              сверяются по телефону, заказы — по номеру.
+            </p>
+            <a className="btn" href="/api/settings/export">
+              ⬇ Скачать все данные (JSON)
+            </a>
+            <label className="field" style={{ marginTop: 14 }}>
+              <span className="field-label">Загрузить файл с данными</span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const payload = JSON.parse(await file.text());
+                    const response = await api.post<{ report: Record<string, number> }>(
+                      '/api/settings/import',
+                      payload,
+                    );
+                    const report = response.report;
+                    toast.show(
+                      `Загружено: клиентов ${report.clients}, заказов ${report.orders}`,
+                      'success',
+                    );
+                    void queryClient.invalidateQueries();
+                  } catch (error) {
+                    toast.show(
+                      error instanceof Error ? error.message : 'Не удалось загрузить файл',
+                      'error',
+                    );
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </section>
       </div>
     </>
   );
