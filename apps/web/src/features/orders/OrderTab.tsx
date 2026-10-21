@@ -4,17 +4,15 @@ import { useState } from 'react';
 import { statusLabel } from '@masterskaya/shared';
 
 import { StatusBadge } from '../../components/StatusBadge';
-import { formatPhone } from '../../lib/format';
+
 import type { Order } from '../../lib/types';
 
 export function OrderTab({
   order,
-  clientName,
   allowedTransitions,
   onChange,
 }: {
   order: Order;
-  clientName: string | null;
   allowedTransitions: string[];
   onChange: (data: Record<string, unknown>) => void;
 }) {
@@ -22,6 +20,9 @@ export function OrderTab({
   const [fault, setFault] = useState(order.fault ?? '');
   const [appearance, setAppearance] = useState(order.appearance ?? '');
   const [work, setWork] = useState(order.workDescription ?? '');
+  const [clientName, setClientName] = useState(order.clientName ?? '');
+  const [clientPhone, setClientPhone] = useState(order.clientPhone ?? '');
+  const [alsoClient, setAlsoClient] = useState(false);
   const [clientTotal, setClientTotal] = useState(String(order.clientTotal ?? ''));
   const [costTotal, setCostTotal] = useState(String(order.costTotal ?? ''));
 
@@ -33,13 +34,38 @@ export function OrderTab({
           <div className="form-grid">
             <label className="field">
               <span className="field-label">Клиент</span>
-              <input value={clientName ?? '—'} readOnly />
+              <input
+                value={clientName}
+                onChange={(event) => setClientName(event.target.value)}
+                placeholder="Имя клиента — можно оставить пустым"
+              />
             </label>
             <label className="field">
               <span className="field-label">Телефон</span>
-              <input value={formatPhone(order.clientPhone)} readOnly />
+              <input
+                value={clientPhone}
+                onChange={(event) => setClientPhone(event.target.value)}
+                placeholder="+375291234567"
+              />
             </label>
           </div>
+
+          {order.clientId ? (
+            <label
+              className="field"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}
+            >
+              <input
+                type="checkbox"
+                checked={alsoClient}
+                onChange={(event) => setAlsoClient(event.target.checked)}
+                style={{ width: 'auto', minHeight: 0 }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Обновить имя и в карточке клиента
+              </span>
+            </label>
+          ) : null}
 
           <label className="field">
             <span className="field-label">Устройство</span>
@@ -88,6 +114,9 @@ export function OrderTab({
               className="btn primary"
               onClick={() =>
                 onChange({
+                  clientName: clientName.trim(),
+                  clientPhone: clientPhone.trim(),
+                  updateClientName: alsoClient,
                   deviceLabel: device,
                   fault,
                   appearance,

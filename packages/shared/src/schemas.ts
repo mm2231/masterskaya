@@ -25,7 +25,13 @@ export const clientInputSchema = z.object({
 
 export type ClientInput = z.infer<typeof clientInputSchema>;
 
-export const clientUpdateSchema = clientInputSchema.partial();
+/**
+ * Правка клиента: имя может быть пустым — это значит «убрать имя».
+ * Телефон обязателен (по нему клиент ищется).
+ */
+export const clientUpdateSchema = clientInputSchema.partial().extend({
+  name: z.string().trim().max(200).optional(),
+});
 
 export const deviceInputSchema = z.object({
   clientId: z.number().int().positive(),
@@ -56,7 +62,10 @@ export const orderInputSchema = z.object({
 
 export type OrderInput = z.infer<typeof orderInputSchema>;
 
-export const orderPatchSchema = orderInputSchema.partial();
+export const orderPatchSchema = orderInputSchema.partial().extend({
+  /** Обновить имя и в справочнике клиентов, а не только в заказе. */
+  updateClientName: z.boolean().optional(),
+});
 
 export const paymentInputSchema = z.object({
   orderId: z.number().int().positive().optional(),

@@ -10,8 +10,10 @@ import {
   statusLabel,
 } from '@masterskaya/shared';
 import type { FastifyInstance } from 'fastify';
+import { eq } from 'drizzle-orm';
 
 import { db } from '../../db.js';
+import { clients } from '@masterskaya/db';
 import { getSetting } from '../settings/repository.js';
 import { nextOrderNumber } from './numbering.js';
 import {
@@ -103,6 +105,18 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(404).send({ error: 'Заказ не найден' });
     }
 
+    // Пустое имя или телефон — это «убрать», а не «оставить как есть».
+    if (data.clientName !== undefined) {
+      data.clientName = String(data.clientName).trim() || null;
+    }
+    if (data.clientPhone !== undefined) {
+      data.clientPhone = String(data.clientPhone).trim() || null;
+    }
+
+    // Обновить ли имя в справочнике клиентов — по запросу.
+    const alsoUpdateClient = data.updateClientName === true;
+    delete data.updateClientName;
+
     // Смена статуса — с проверкой перехода и фиксацией в журнале.
     if (data.status && data.status !== current.order.status) {
       if (!isOrderStatus(data.status)) {
@@ -154,6 +168,24 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         from: current.order.costTotal,
         to: data.costTotal,
       });
+    }
+    if (data.clientName !== undefined && data.clientName !== current.order.clientName) {
+      await logEvent(
+        db(),
+        id,
+        'client_changed',
+        data.clientName ? `Клиент: ${data.clientName}` : 'Клиент убран',
+        { from: current.order.clientName, to: data.clientName },
+      );
+
+      // По просьбе меняем имя и в справочнике клиентов.
+      if (alsoUpdateClient && current.order.clientId && data.clientName) {
+        await db()
+          .update(clients)
+          .set({ name: String(data.clientName), updatedAt: nowSql() })
+          .where(eq(clients.id, current.order.clientId))
+          .run();
+      }
     }
 
     return { order };

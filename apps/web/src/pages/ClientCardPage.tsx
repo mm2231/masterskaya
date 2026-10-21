@@ -1,10 +1,12 @@
 /** Карточка клиента: контакты, метрики, история ремонтов. */
 
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { EmptyState } from '../components/EmptyState';
 import { StatusBadge } from '../components/StatusBadge';
+import { useToast } from '../components/Toast';
 import { api } from '../lib/api';
 import { formatDateTime, formatMoney, formatPhone, initials } from '../lib/format';
 import type { ClientCard } from '../lib/types';
@@ -13,10 +15,34 @@ export function ClientCardPage() {
   const { id } = useParams();
   const clientId = Number(id);
   const navigate = useNavigate();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
 
   const card = useQuery({
     queryKey: ['client', clientId],
     queryFn: () => api.get<ClientCard>(`/api/clients/${clientId}`),
+  });
+
+  // Поля заполняем данными клиента, когда карточка загрузилась.
+  useEffect(() => {
+    if (card.data) {
+      setName(card.data.client.name ?? '');
+      setPhone(card.data.client.phone ?? '');
+    }
+  }, [card.data]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch(`/api/clients/${clientId}`, { name: name.trim(), phone: phone.trim() }),
+    onSuccess: () => {
+      toast.show('Сохранено', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      void queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
   });
 
   if (card.isLoading) {
@@ -96,6 +122,34 @@ export function ClientCardPage() {
                 <div style={{ color: 'var(--text-muted)' }}>{formatPhone(client.phone)}</div>
               </div>
             </div>
+
+            <label className="field">
+              <span className="field-label">Имя</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Имя клиента"
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Телефон</span>
+              <input
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+375291234567"
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={save.isPending}
+                onClick={() => save.mutate()}
+              >
+                Сохранить
+              </button>
+            </div>
+
             {client.email ? (
               <div className="field">
                 <span className="field-label">E-mail</span>

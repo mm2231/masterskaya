@@ -203,6 +203,90 @@ describe('заказы', () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it('меняет имя клиента в заказе', async () => {
+    const { order } = await createOrder({
+      clientName: 'Старое имя',
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { clientName: 'Новое имя' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().order.clientName).toBe('Новое имя');
+  });
+
+  it('убирает имя клиента, если поле очистили', async () => {
+    const { order } = await createOrder({
+      clientName: 'Будет убрано',
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { clientName: '' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().order.clientName).toBeNull();
+  });
+
+  it('по запросу меняет имя и в справочнике клиентов', async () => {
+    const client = await app.inject({
+      method: 'POST',
+      url: '/api/clients',
+      payload: { name: 'Клиент Из Справочника', phone: '+375297777777' },
+    });
+    const clientId = client.json().client.id;
+
+    const { order } = await createOrder({
+      clientId,
+      clientName: 'Клиент Из Справочника',
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { clientName: 'Новое Имя', updateClientName: true },
+    });
+
+    const card = await app.inject({ method: 'GET', url: `/api/clients/${clientId}` });
+    expect(card.json().client.name).toBe('Новое Имя');
+  });
+
+  it('не трогает справочник клиентов без явного запроса', async () => {
+    const client = await app.inject({
+      method: 'POST',
+      url: '/api/clients',
+      payload: { name: 'Оригинальное Имя', phone: '+375296666666' },
+    });
+    const clientId = client.json().client.id;
+
+    const { order } = await createOrder({
+      clientId,
+      clientName: 'Оригинальное Имя',
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { clientName: 'Только В Заказе' },
+    });
+
+    const card = await app.inject({ method: 'GET', url: `/api/clients/${clientId}` });
+    expect(card.json().client.name).toBe('Оригинальное Имя');
+  });
+
   it('фильтрует по нескольким статусам сразу', async () => {
     const first = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });
     const second = await createOrder({ clientTotal: 40, costTotal: 20, status: 'new' });

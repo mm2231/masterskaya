@@ -104,6 +104,10 @@ export async function registerClientRoutes(app: FastifyInstance): Promise<void> 
       return reply.code(400).send({ error: 'Проверьте данные', details: parsed.error.issues });
     }
     const data = { ...parsed.data };
+    if (data.name !== undefined) {
+      // Пустое имя — это «убрать», а не «оставить как есть».
+      data.name = data.name.trim();
+    }
     if (data.phone) {
       data.phone = normalizePhone(data.phone);
       const duplicate = await findByPhone(db(), data.phone);

@@ -66,7 +66,7 @@ export function OrderCardPage() {
     );
   }
 
-  const { order, client, history, allowedTransitions } = card.data;
+  const { order, history, allowedTransitions } = card.data;
   const profit = order.clientTotal - order.costTotal;
   const orderPayments = (payments.data?.items ?? []).filter((item) => item.orderId === orderId);
   const paid = orderPayments
@@ -142,7 +142,6 @@ export function OrderCardPage() {
       {tab === 'order' ? (
         <OrderTab
           order={order}
-          clientName={client?.name ?? order.clientName}
           allowedTransitions={allowedTransitions}
           onChange={(data) => patch.mutate(data)}
         />
