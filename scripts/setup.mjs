@@ -79,9 +79,12 @@ checkNode();
 ensureEnv();
 ensureDataDir();
 
+// Пакеты shared и db собираем первыми: скрипты миграций и наполнения
+// импортируют @masterskaya/shared из собранного dist.
+run('npm', ['run', 'build:packages']);
 run('npm', ['run', 'db:migrate']);
 run('npm', ['run', 'db:seed']);
-run('npm', ['run', 'build']);
+run('npm', ['run', 'build:app']);
 
 console.log('\n✔ Готово.');
 console.log('Запустите приложение:');
