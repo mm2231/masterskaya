@@ -70,6 +70,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
     const data = parsed.data;
 
+    // Сумма за ремонт обязательна: это единственный итог, который видит клиент.
+    if (!Number.isFinite(data.clientTotal) || data.clientTotal <= 0) {
+      return reply.code(400).send({ error: 'Укажите сумму за ремонт больше нуля' });
+    }
+    if (data.costTotal < 0) {
+      return reply.code(400).send({ error: 'Себестоимость не может быть отрицательной' });
+    }
+
     const pattern = (await getSetting<string>(db(), 'orderNumberPattern')) ?? '{YYYY}-{SEQ}';
     const number = await nextOrderNumber(db(), pattern);
 

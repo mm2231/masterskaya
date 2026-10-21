@@ -1,0 +1,167 @@
+/*
+ * Печатные документы: приёмный акт и акт выполненных работ.
+ *
+ * Поля @page и типографика перенесены из старой версии приложения —
+ * бланки печатались годами, менять их нельзя.
+ */
+
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
+.print-root {
+  background: #f1f5f9;
+  min-height: 100%;
+  padding: 20px;
+}
+
+.print-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 210mm;
+  margin: 0 auto 14px;
+}
+
+.print-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 14mm 12mm;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 2px 12px rgb(15 23 42 / 0.18);
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+.print-page h1 {
+  font-size: 17px;
+  text-align: center;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.print-page h2 {
+  font-size: 13px;
+  margin: 14px 0 6px;
+}
+
+.print-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 20px;
+  font-size: 11.5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #000;
+}
+
+.print-head div {
+  white-space: pre-line;
+}
+
+.print-title {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0 12px;
+}
+
+.print-block {
+  margin-bottom: 8px;
+}
+
+.print-row {
+  display: flex;
+  gap: 8px;
+  padding: 2.5px 0;
+  border-bottom: 1px dotted #bbb;
+}
+
+.print-label {
+  flex: 0 0 52mm;
+  font-weight: 700;
+}
+
+.print-value {
+  flex: 1;
+}
+
+.print-underline {
+  display: inline-block;
+  min-width: 60mm;
+  border-bottom: 1px solid #000;
+}
+
+.print-sum {
+  margin-top: 14px;
+  padding: 8px 0;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+}
+
+.print-words {
+  font-style: italic;
+  font-weight: 400;
+  margin-top: 4px;
+  text-align: right;
+}
+
+.print-signs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 34px;
+}
+
+.print-sign {
+  border-top: 1px solid #000;
+  padding-top: 4px;
+  font-size: 11.5px;
+}
+
+.print-sign-label {
+  font-size: 10.5px;
+  color: #444;
+}
+
+.print-note {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #333;
+}
+
+@media print {
+  /* Высота 100% у html/body/#root заставляет содержимое быть выше листа
+     (учитывая поля @page) и акт уходит на вторую страницу. */
+  html,
+  body,
+  #root {
+    height: auto;
+  }
+
+  .print-root {
+    background: #fff;
+    padding: 0;
+  }
+
+  .print-toolbar {
+    display: none;
+  }
+
+  .print-page {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}

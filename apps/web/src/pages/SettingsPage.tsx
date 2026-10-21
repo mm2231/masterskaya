@@ -1,0 +1,166 @@
+/** Настройки: реквизиты мастерской и шаблоны нумерации. */
+
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { useToast } from '../components/Toast';
+import { api } from '../lib/api';
+import type { Workshop } from '../lib/types';
+
+export function SettingsPage() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const workshop = useQuery({
+    queryKey: ['workshop'],
+    queryFn: () => api.get<{ workshop: Workshop }>('/api/settings/workshop'),
+  });
+
+  const numbering = useQuery({
+    queryKey: ['numbering'],
+    queryFn: () =>
+      api.get<{ orderNumberPattern: string; documentNumberPattern: string }>(
+        '/api/settings/numbering',
+      ),
+  });
+
+  const [form, setForm] = useState<Workshop>({
+    name: '',
+    owner: '',
+    unp: '',
+    address: '',
+    phone: '',
+  });
+  const [orderPattern, setOrderPattern] = useState('{YYYY}-{SEQ}');
+  const [docPattern, setDocPattern] = useState('{YYYY}-{SEQ}');
+
+  useEffect(() => {
+    if (workshop.data) setForm(workshop.data.workshop);
+  }, [workshop.data]);
+
+  useEffect(() => {
+    if (numbering.data) {
+      setOrderPattern(numbering.data.orderNumberPattern);
+      setDocPattern(numbering.data.documentNumberPattern);
+    }
+  }, [numbering.data]);
+
+  const saveWorkshop = useMutation({
+    mutationFn: (value: Workshop) => api.put('/api/settings/workshop', value),
+    onSuccess: () => {
+      toast.show('Реквизиты сохранены', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['workshop'] });
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
+  });
+
+  const saveNumbering = useMutation({
+    mutationFn: (value: { orderNumberPattern: string; documentNumberPattern: string }) =>
+      api.put('/api/settings/numbering', value),
+    onSuccess: () => {
+      toast.show('Шаблоны нумерации сохранены', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['numbering'] });
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
+  });
+
+  return (
+    <>
+      <div className="page-head">
+        <h1>Настройки</h1>
+      </div>
+
+      <div className="split-even">
+        <section className="panel">
+          <div className="panel-head">Реквизиты мастерской</div>
+          <div className="panel-body">
+            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+              Эти данные подставляются в приёмный акт и акт выполненных работ.
+            </p>
+            <label className="field">
+              <span className="field-label">Название</span>
+              <input
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Владелец</span>
+              <input
+                value={form.owner}
+                onChange={(event) => setForm({ ...form, owner: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">УНП</span>
+              <input
+                value={form.unp}
+                onChange={(event) => setForm({ ...form, unp: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Адрес</span>
+              <input
+                value={form.address}
+                onChange={(event) => setForm({ ...form, address: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Телефон</span>
+              <input
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={saveWorkshop.isPending}
+                onClick={() => saveWorkshop.mutate(form)}
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">Нумерация документов</div>
+          <div className="panel-body">
+            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+              Подстановки: <code>{'{YYYY}'}</code> — год, <code>{'{SEQ}'}</code> — порядковый
+              номер.
+            </p>
+            <label className="field">
+              <span className="field-label">Номер заказа</span>
+              <input
+                value={orderPattern}
+                onChange={(event) => setOrderPattern(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Номер акта</span>
+              <input value={docPattern} onChange={(event) => setDocPattern(event.target.value)} />
+            </label>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={saveNumbering.isPending}
+                onClick={() =>
+                  saveNumbering.mutate({
+                    orderNumberPattern: orderPattern,
+                    documentNumberPattern: docPattern,
+                  })
+                }
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
