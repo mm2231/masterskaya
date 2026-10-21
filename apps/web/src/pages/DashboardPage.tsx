@@ -18,6 +18,7 @@ import { api, query } from '../lib/api';
 import { formatDateTime, formatMoney, formatPhone } from '../lib/format';
 import type { FinanceSummary, Order } from '../lib/types';
 import { StatusTransition } from '../features/orders/StatusTransition';
+import { TodayPanel } from '../features/finance/TodayPanel';
 
 /** Этапы, на которых заказ ещё в работе. */
 const OPEN_STATUSES = ORDER_STATUSES.filter(
@@ -65,6 +66,8 @@ export function DashboardPage() {
           ＋ Принять заказ
         </Link>
       </div>
+
+      <TodayPanel />
 
       <div className="kpi-grid">
         <div className="kpi">

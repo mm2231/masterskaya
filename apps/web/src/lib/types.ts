@@ -143,3 +143,32 @@ export interface FinanceSummary {
   summary: PeriodSummary;
   expensesByCategory: { category: string | null; amount: number; count: number }[];
 }
+
+/** Сводка за текущий день: выданные заказы и прибыль за день. */
+export interface TodayOrder {
+  id: number;
+  number: string;
+  clientName: string | null;
+  clientPhone: string | null;
+  deviceLabel: string | null;
+  clientTotal: number;
+  costTotal: number;
+  profit: number;
+  issuedAt: string | null;
+  workDescription: string | null;
+}
+
+export interface TodayData {
+  date: string;
+  summary: PeriodSummary;
+  orders: TodayOrder[];
+  payments: {
+    id: number;
+    orderId: number | null;
+    direction: 'in' | 'out';
+    amount: number;
+    method: string;
+    category: string | null;
+    note: string | null;
+  }[];
+}

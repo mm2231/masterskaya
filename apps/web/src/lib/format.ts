@@ -1,7 +1,7 @@
 /** Форматирование для интерфейса: деньги, даты, инициалы. */
 
 export { formatMoney, formatNumber, formatRub, formatRubInt } from '@masterskaya/shared';
-export { formatDate, formatDateLong, formatDateShort, formatDateTime } from '@masterskaya/shared';
+export { formatDate, formatDateLong, formatDateShort, formatDateTime, formatTime } from '@masterskaya/shared';
 
 /** Инициалы клиента для аватара: «Иванов Иван» → «ИИ». */
 export function initials(name: string | null | undefined): string {

@@ -294,6 +294,30 @@ describe('финансы', () => {
     expect(after.json().summary.profit).toBe(profitBefore - 30);
   });
 
+  it('сводит выданное за сегодня в отдельную сводку', async () => {
+    const { order } = await createOrder({ clientTotal: 120, costTotal: 50, status: 'new' });
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'ready' },
+    });
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'issued' },
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/api/finance/today' });
+    expect(response.statusCode).toBe(200);
+    const data = response.json();
+    expect(data.date).toBe(new Date().toISOString().slice(0, 10));
+    expect(data.summary.issuedCount).toBeGreaterThan(0);
+    // Выданный сегодня заказ есть в списке, и его прибыль посчитана.
+    const found = data.orders.find((item: { number: string }) => item.number === order.number);
+    expect(found).toBeTruthy();
+    expect(found.profit).toBe(70);
+  });
+
   it('выгружает CSV с BOM для Excel', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/finance/export' });
     expect(response.statusCode).toBe(200);

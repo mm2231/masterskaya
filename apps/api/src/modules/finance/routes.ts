@@ -1,6 +1,6 @@
 /** HTTP-маршруты финансов: /api/finance… */
 
-import { paymentInputSchema, summarize } from '@masterskaya/shared';
+import { paymentInputSchema, summarize, todayIso } from '@masterskaya/shared';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -11,10 +11,12 @@ import {
   deletePayment,
   expensesByCategory,
   expensesInPeriod,
+  issuedOnDay,
   listExpenseCategories,
   listPayments,
   manualIncomeInPeriod,
   orderPaid,
+  paymentsOnDay,
 } from './repository.js';
 
 /** Границы периода: из запроса или текущий месяц. */
@@ -51,6 +53,43 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     );
 
     return { from, to, summary, expensesByCategory: byCategory };
+  });
+
+  /**
+   * Сводка за текущий день: выручка, прибыль и список выданных заказов.
+   *
+   * Основа — заказы, выданные сегодня (по дате выдачи). Дополнительно
+   * учитываются оплаты за сегодня: доходы без заказа и расходы.
+   */
+  app.get('/api/finance/today', async () => {
+    const day = todayIso();
+    const issued = await issuedOnDay(db(), day);
+    const movements = await paymentsOnDay(db(), day);
+
+    const manualIncome = movements
+      .filter((item) => item.direction === 'in')
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const expenses = movements
+      .filter((item) => item.direction === 'out')
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const summary = summarize(
+      issued.map((order) => ({
+        clientTotal: order.clientTotal,
+        costTotal: order.costTotal,
+      })),
+      { manualIncome, expenses },
+    );
+
+    return {
+      date: day,
+      summary,
+      orders: issued.map((order) => ({
+        ...order,
+        profit: Number(order.clientTotal) - Number(order.costTotal),
+      })),
+      payments: movements,
+    };
   });
 
   /** Журнал движений денег. */

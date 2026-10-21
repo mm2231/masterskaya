@@ -157,3 +157,45 @@ export async function expensesByCategory(
     .orderBy(desc(sql`coalesce(sum(${payments.amount}), 0)`))
     .all();
 }
+
+/** Заказы, выданные за конкретный день (по дате выдачи). */
+export async function issuedOnDay(database: AppDatabase, day: string) {
+  return database
+    .select({
+      id: orders.id,
+      number: orders.number,
+      clientName: orders.clientName,
+      clientPhone: orders.clientPhone,
+      deviceLabel: orders.deviceLabel,
+      clientTotal: orders.clientTotal,
+      costTotal: orders.costTotal,
+      issuedAt: orders.issuedAt,
+      workDescription: orders.workDescription,
+    })
+    .from(orders)
+    .where(
+      and(
+        sql`date(${orders.issuedAt}) = ${day}`,
+        eq(orders.status, 'issued'),
+      ),
+    )
+    .orderBy(desc(orders.issuedAt))
+    .all();
+}
+
+/** Оплаты, проведённые за день (приходы и расходы). */
+export async function paymentsOnDay(database: AppDatabase, day: string) {
+  return database
+    .select({
+      id: payments.id,
+      orderId: payments.orderId,
+      direction: payments.direction,
+      amount: payments.amount,
+      method: payments.method,
+      category: payments.category,
+      note: payments.note,
+    })
+    .from(payments)
+    .where(eq(payments.occurredOn, day))
+    .all();
+}

@@ -84,6 +84,15 @@ export function nowSql(): string {
   );
 }
 
+/** «14:30» — только время, для списка за сегодня. */
+export function formatTime(value: unknown): string {
+  const date = parse(value);
+  if (!date) return '—';
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 /** Первый день месяца в формате YYYY-MM-DD. */
 export function monthStartIso(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
