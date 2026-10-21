@@ -7,7 +7,7 @@
 
 @page {
   size: A4;
-  margin: 14mm 12mm;
+  margin: 10mm 12mm;
 }
 
 .print-root {
@@ -139,6 +139,138 @@
   color: #333;
 }
 
+/* ── Условия ремонта ───────────────────────────────────────────────────── */
+
+.print-terms {
+  margin-top: 8px;
+  font-size: 9px;
+  line-height: 1.3;
+  color: #111;
+}
+
+.print-terms-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.print-terms ol {
+  margin: 0;
+  padding-left: 14px;
+}
+
+.print-terms li {
+  margin-bottom: 1px;
+}
+
+/* ── Приёмный акт в двух экземплярах ───────────────────────────────────── */
+
+/*
+ * Один лист A4 режется пополам: верхняя половина — заказчику,
+ * нижняя — мастерской. Между ними пунктирная линия отрыва.
+ */
+.print-duo {
+  width: 210mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 2px 12px rgb(15 23 42 / 0.18);
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 11px;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+.print-half {
+  padding: 6mm 12mm 4mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Линия отрыва с ножницами. */
+.print-cut {
+  position: relative;
+  margin: 0 12mm;
+  border-top: 1px dashed #999;
+  text-align: center;
+  color: #888;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 8.5px;
+  line-height: 1;
+}
+
+.print-cut span {
+  position: relative;
+  top: -0.6em;
+  background: #fff;
+  padding: 0 8px;
+}
+
+/* Метка экземпляра. */
+.print-copy-mark {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid #333;
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.print-half .print-head {
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  font-size: 9px;
+  gap: 2px 12px;
+}
+
+.print-half h1 {
+  font-size: 13px;
+  margin: 0 0 2px;
+}
+
+.print-half h2 {
+  font-size: 10px;
+  margin: 5px 0 2px;
+}
+
+.print-half .print-title {
+  font-size: 11.5px;
+  margin: 3px 0 5px;
+}
+
+.print-half .print-block {
+  margin-bottom: 3px;
+}
+
+.print-half .print-row {
+  padding: 1px 0;
+}
+
+.print-half .print-label {
+  flex: 0 0 46mm;
+  font-size: 10.5px;
+}
+
+.print-half .print-value {
+  font-size: 10.5px;
+}
+
+.print-half .print-signs {
+  margin-top: 12px;
+  gap: 24px;
+}
+
+.print-half .print-sign {
+  font-size: 10px;
+}
+
+.print-half .print-sign-label {
+  font-size: 9px;
+}
+
 @media print {
   /* Высота 100% у html/body/#root заставляет содержимое быть выше листа
      (учитывая поля @page) и акт уходит на вторую страницу. */
@@ -162,6 +294,12 @@
     min-height: 0;
     margin: 0;
     padding: 0;
+    box-shadow: none;
+  }
+
+  .print-duo {
+    width: auto;
+    margin: 0;
     box-shadow: none;
   }
 }

@@ -1,11 +1,17 @@
-/** Печатный бланк: приёмный акт или акт выполненных работ. */
+/**
+ * Печатный бланк: приёмный акт или акт выполненных работ.
+ *
+ * Приёмный акт печатается в двух экземплярах на одном листе A4:
+ * лист режется пополам — верхняя половина отдаётся заказчику,
+ * нижняя остаётся в мастерской.
+ */
 
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
-import { formatDateLong, formatRubInt } from '../lib/format';
+import { ActBody } from './ActBody';
 import './print.css';
 
 interface PreviewData {
@@ -64,7 +70,6 @@ export function PrintDocument() {
   const { order, workshop, totals } = preview.data;
   const isWorks = preview.data.kind === 'works';
 
-
   return (
     <div className="print-root">
       <div className="print-toolbar">
@@ -75,115 +80,41 @@ export function PrintDocument() {
           Закрыть
         </button>
         <span style={{ color: 'var(--text-muted)' }}>
-          Чтобы получить PDF: «Печать / PDF» → «Сохранить как PDF».
+          {isWorks
+            ? 'Чтобы получить PDF: «Печать / PDF» → «Сохранить как PDF».'
+            : 'Бланк печатается в двух экземплярах — лист разрезается по пунктирной линии.'}
         </span>
       </div>
 
-      <article className="print-page">
-        <header className="print-head">
-          <div>{workshop.address}</div>
-          <div>Мастерская «{workshop.name}»</div>
-          <div>Тел: {workshop.phone}</div>
-          <div>{workshop.owner}</div>
-          <div>УНП: {workshop.unp}</div>
-        </header>
-
-        <h1>{isWorks ? 'Акт выполненных работ' : 'Приёмный акт'}</h1>
-
-        <div className="print-title">
-          № {order.number} от {formatDateLong(order.acceptedAt)}
-        </div>
-
-        <div className="print-block">
-          <div className="print-row">
-            <span className="print-label">Заказчик:</span>
-            <span className="print-value">{order.clientName ?? '—'}</span>
+      {isWorks ? (
+        <article className="print-page">
+          <ActBody kind="works" order={order} workshop={workshop} words={totals.words} />
+        </article>
+      ) : (
+        <article className="print-duo">
+          <div className="print-half">
+            <ActBody
+              kind="acceptance"
+              order={order}
+              workshop={workshop}
+              words={totals.words}
+              copyLabel="Заказчику"
+            />
           </div>
-          <div className="print-row">
-            <span className="print-label">Телефон:</span>
-            <span className="print-value">{order.clientPhone ?? '—'}</span>
+          <div className="print-cut">
+            <span>✂ —————— разрезать по линии —————— ✂</span>
           </div>
-        </div>
-
-        <h2>Оборудование, переданное в ремонт</h2>
-        <div className="print-block">
-          <div className="print-row">
-            <span className="print-label">Бренд, модель:</span>
-            <span className="print-value">{order.deviceLabel ?? '—'}</span>
+          <div className="print-half">
+            <ActBody
+              kind="acceptance"
+              order={order}
+              workshop={workshop}
+              words={totals.words}
+              copyLabel="Мастерской"
+            />
           </div>
-          <div className="print-row">
-            <span className="print-label">Заявленная неисправность:</span>
-            <span className="print-value">{order.fault ?? '—'}</span>
-          </div>
-          <div className="print-row">
-            <span className="print-label">Отметки, комплектация, внешний вид:</span>
-            <span className="print-value">{order.appearance ?? '—'}</span>
-          </div>
-          {order.accessories ? (
-            <div className="print-row">
-              <span className="print-label">Комплектация:</span>
-              <span className="print-value">{order.accessories}</span>
-            </div>
-          ) : null}
-        </div>
-
-
-        {isWorks ? (
-          <>
-            <h2>Выполненные работы</h2>
-            <div className="print-block">
-              <div className="print-row">
-                <span className="print-label">Перечень работ:</span>
-                <span className="print-value">{order.workDescription ?? '—'}</span>
-              </div>
-            </div>
-
-            <div className="print-sum">
-              <span>Стоимость работ и запасных частей:</span>
-              <span>{formatRubInt(order.clientTotal)}</span>
-            </div>
-            <div className="print-words">{totals.words}</div>
-
-            {order.warrantyMonths > 0 ? (
-              <div className="print-note">
-                Гарантия на выполненные работы и установленные запасные части —{' '}
-                {order.warrantyMonths} мес. с даты выдачи.
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <h2>Условия ремонта</h2>
-            <div className="print-block">
-              <div className="print-row">
-                <span className="print-label">Ориентировочная стоимость:</span>
-                <span className="print-value">{formatRubInt(order.clientTotal)}</span>
-              </div>
-              <div className="print-row">
-                <span className="print-label">Срок выполнения:</span>
-                <span className="print-value">уточняется после диагностики</span>
-              </div>
-            </div>
-            <div className="print-note">
-              Стоимость ремонта окончательно определяется после диагностики и согласуется с
-              заказчиком. Заказчик уведомляется о готовности.
-            </div>
-          </>
-        )}
-
-        <div className="print-signs">
-          <div className="print-sign">
-            Заказчик: ______________________
-            <div className="print-sign-label">
-              {order.clientName ?? ''} / {order.clientPhone ?? ''}
-            </div>
-          </div>
-          <div className="print-sign">
-            Мастер: ______________________
-            <div className="print-sign-label">{workshop.owner}</div>
-          </div>
-        </div>
-      </article>
+        </article>
+      )}
     </div>
   );
 }
