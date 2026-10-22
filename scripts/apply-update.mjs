@@ -232,6 +232,14 @@ if (mode === 'install') {
     say('Ставлю зависимости…');
     run(npmCommand(), ['ci', '--no-audit', '--no-fund']);
 
+    // Новые миграции схемы — их тоже нужно применить.
+    say('Применяю миграции…');
+    run(npmCommand(), ['run', 'db:migrate']);
+
+    // Время в базе — в локальную зону (часть записей могла остаться в UTC).
+    say('Проверяю время в базе…');
+    run('node', ['scripts/fix-times.mjs']);
+
     say('Собираю приложение…');
     run(npmCommand(), ['run', 'build']);
 
