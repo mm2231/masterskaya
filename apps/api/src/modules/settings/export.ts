@@ -6,6 +6,7 @@
  */
 
 import { and, asc, eq, isNull } from 'drizzle-orm';
+import { nowSql } from '@masterskaya/shared';
 
 import type { AppDatabase } from '../../db.js';
 import {
@@ -92,10 +93,10 @@ export async function importAll(
     if (value === undefined) continue;
     await database
       .insert(settings)
-      .values({ key, value: value as never, updatedAt: new Date().toISOString() })
+      .values({ key, value: value as never, updatedAt: nowSql() })
       .onConflictDoUpdate({
         target: settings.key,
-        set: { value: value as never, updatedAt: new Date().toISOString() },
+        set: { value: value as never, updatedAt: nowSql() },
       })
       .run();
     report.settings += 1;

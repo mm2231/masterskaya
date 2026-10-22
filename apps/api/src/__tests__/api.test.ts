@@ -37,6 +37,7 @@ beforeAll(async () => {
       HOST: '127.0.0.1',
       DEV: false,
       DATABASE_PATH: path,
+      TIMEZONE_OFFSET_HOURS: '3',
       BACKUP_DIR: join(tempDir, 'backups'),
       BACKUP_INTERVAL_HOURS: 24,
       BACKUP_KEEP: 3,
@@ -742,6 +743,29 @@ describe('экспорт и импорт данных', () => {
         phone: '+375291234567',
       },
     });
+  });
+});
+
+describe('время в записях', () => {
+  it('заказ и акт записываются в локальной зоне, а не в UTC', async () => {
+    // Зона UTC+3: записи должны быть на 3 часа позже, чем UTC.
+    const utc = new Date();
+    const expected = new Date(utc.getTime() + 3 * 3_600_000);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const localNow = `${expected.getUTCFullYear()}-${pad(expected.getUTCMonth() + 1)}-${pad(
+      expected.getUTCDate(),
+    )} ${pad(expected.getUTCHours())}:${pad(expected.getUTCMinutes())}`;
+
+    const { order } = await createOrder({ clientTotal: 50, costTotal: 20, status: 'new' });
+    expect(order.acceptedAt.slice(0, 16)).toBe(localNow);
+
+    const document = await app.inject({
+      method: 'POST',
+      url: '/api/documents',
+      payload: { orderId: order.id, kind: 'acceptance' },
+    });
+    expect(document.statusCode).toBe(201);
+    expect(document.json().document.issuedAt.slice(0, 16)).toBe(localNow);
   });
 });
 

@@ -6,6 +6,7 @@ import { platform, release, arch } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { sql } from 'drizzle-orm';
+import { nowSql, timezoneLabel } from '@masterskaya/shared';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -61,6 +62,9 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         port: process.env.PORT ?? '—',
         version: '2.0.0',
         authEnabled: Boolean(process.env.APP_PASSWORD),
+        /** Часовой пояс мастерской — время в базе хранится в нём. */
+        timezone: timezoneLabel(),
+        localTime: nowSql(),
       },
       database: {
         path: database,
@@ -96,7 +100,8 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   /** Выгрузка всех данных в JSON — перенос между компьютерами. */
   app.get('/api/settings/export', async (_request, reply) => {
     const data = await exportAll(db());
-    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    // Имя файла — по локальному времени, чтобы совпадало с записями в базе.
+    const stamp = nowSql().slice(0, 16).replace(' ', '_').replace(':', '-');
     return reply
       .header('Content-Type', 'application/json; charset=utf-8')
       .header('Content-Disposition', `attachment; filename="masterskaya_${stamp}.json"`)
@@ -148,7 +153,13 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     const started = spawn(
       process.execPath,
       [resolve(repoRoot, 'scripts/apply-update.mjs'), 'install'],
-      { cwd: repoRoot, detached: true, stdio: 'ignore' },
+      {
+        cwd: repoRoot,
+        detached: true,
+        stdio: 'ignore',
+        // На Windows без этого появляется чёрное окно консоли.
+        windowsHide: true,
+      },
     );
     started.unref();
     return { started: true, message: 'Обновление запущено. Приложение перезапустится.' };
@@ -188,7 +199,11 @@ function runUpdateScript(mode: 'check' | 'install'): Promise<ScriptResult> {
     const child = spawn(
       process.execPath,
       [resolve(repoRoot, 'scripts/apply-update.mjs'), mode],
-      { cwd: repoRoot },
+      {
+        cwd: repoRoot,
+        // На Windows без этого появляется и сразу исчезает чёрное окно.
+        windowsHide: true,
+      },
     );
     let stdout = '';
     let stderr = '';

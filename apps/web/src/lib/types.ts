@@ -226,6 +226,9 @@ export interface Diagnostics {
     port: string;
     version: string;
     authEnabled: boolean;
+    /** Часовой пояс мастерской и текущее время в нём. */
+    timezone: string;
+    localTime: string;
   };
   database: {
     path: string;

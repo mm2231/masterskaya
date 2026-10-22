@@ -111,7 +111,7 @@ export async function importLegacy(
           name: name || 'Клиент без имени',
           phone,
           note: row.note ? String(row.note) : null,
-          createdAt: String(row.created_at ?? new Date().toISOString()),
+          createdAt: String(row.created_at ?? nowSql()),
         })
         .run();
       report.clients.created += 1;

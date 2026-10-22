@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { todayIso } from '@masterskaya/shared';
 
 import { useToast } from '../../components/Toast';
 import { api } from '../../lib/api';
@@ -16,7 +17,7 @@ export function PaymentForm() {
   const [direction, setDirection] = useState<'in' | 'out'>('out');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
-  const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10));
+  const [occurredOn, setOccurredOn] = useState(() => todayIso());
   const [note, setNote] = useState('');
 
   const toast = useToast();

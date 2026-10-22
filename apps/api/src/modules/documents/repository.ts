@@ -1,6 +1,7 @@
 /** Работа с документами: приёмный акт, акт выполненных работ. */
 
 import { desc, eq, sql } from 'drizzle-orm';
+import { nowSql } from '@masterskaya/shared';
 
 import type { AppDatabase } from '../../db.js';
 import { documents, orders } from '@masterskaya/db';
@@ -81,6 +82,9 @@ export async function createDocument(
       number: data.number,
       note: data.note ?? null,
       snapshot: data.snapshot ?? null,
+      // Время задаём явно: значение по умолчанию в схеме — это UTC.
+      issuedAt: nowSql(),
+      createdAt: nowSql(),
     })
     .returning();
   return row!;

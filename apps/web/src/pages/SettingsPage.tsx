@@ -281,6 +281,12 @@ export function SettingsPage() {
                   <code>{diagnostics.data.app.port}</code>
                 </div>
                 <div className="diag-row">
+                  <span>Время</span>
+                  <code>
+                    {diagnostics.data.app.localTime} ({diagnostics.data.app.timezone})
+                  </code>
+                </div>
+                <div className="diag-row">
                   <span>Папка</span>
                   <code>{diagnostics.data.app.repoRoot}</code>
                 </div>

@@ -32,12 +32,35 @@ function say(message) {
 
 /** Выполнить команду и вернуть её вывод. Бросает исключение при ошибке. */
 function run(command, args, options = {}) {
-  return execFileSync(command, args, {
-    cwd: appRoot,
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
+  try {
+    return execFileSync(command, args, {
+      cwd: appRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // На Windows не показываем чёрное окно консоли.
+      windowsHide: true,
+      ...options,
+    }).trim();
+  } catch (error) {
+    // Понятное сообщение: что за команда, что она ответила.
+    const failure = error;
+    const details = String(failure?.stderr ?? '').trim().split('\n').slice(-6).join('\n');
+    throw new Error(
+      `команда «${command} ${args.join(' ')}» завершилась с кодом ${failure?.status ?? '?'}` +
+        (details ? `:\n${details}` : ''),
+    );
+  }
+}
+
+/**
+ * Команда npm.
+ *
+ * На Windows npm — это npm.cmd, а execFile без shell такие файлы не запускает:
+ * скрипт падал с ENOENT, и обновление не применялось. Поэтому на Windows
+ * указываем npm.cmd явно.
+ */
+function npmCommand() {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
 }
 
 /** Есть ли в папке репозиторий git? */
@@ -204,10 +227,13 @@ if (mode === 'install') {
   try {
     say('Забираю изменения с GitHub…');
     run('git', ['pull', '--ff-only', 'origin', 'main']);
+    say(`Забрано коммитов: ${before.remote.behind}`);
+
     say('Ставлю зависимости…');
-    run('npm', ['ci', '--no-audit', '--no-fund']);
+    run(npmCommand(), ['ci', '--no-audit', '--no-fund']);
+
     say('Собираю приложение…');
-    run('npm', ['run', 'build']);
+    run(npmCommand(), ['run', 'build']);
 
     const port = resolvePort();
     stopServer();

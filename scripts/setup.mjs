@@ -86,6 +86,11 @@ ensureDataDir();
 run('npm', ['run', 'build:packages']);
 run('npm', ['run', 'db:migrate']);
 run('npm', ['run', 'db:seed']);
+
+// Время в базе приводим к локальному: часть записей писалась в UTC.
+// Скрипт идемпотентный — повторно ничего не меняет.
+run('node', ['scripts/fix-times.mjs']);
+
 run('npm', ['run', 'build:app']);
 
 console.log('\n✔ Готово.');

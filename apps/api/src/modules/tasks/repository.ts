@@ -1,6 +1,7 @@
 /** Работа с задачами: список, создание, отметка выполнения. */
 
 import { and, asc, eq, sql } from 'drizzle-orm';
+import { nowSql } from '@masterskaya/shared';
 
 import type { AppDatabase } from '../../db.js';
 import { orderTasks, orders } from '@masterskaya/db';
@@ -127,6 +128,8 @@ export async function createTask(
       title: data.title,
       dueAt: data.dueAt,
       done: false,
+      // Время задаём явно: значение по умолчанию в схеме — это UTC.
+      createdAt: nowSql(),
     })
     .returning();
   return row!;

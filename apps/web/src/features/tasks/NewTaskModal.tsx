@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { TASK_TEMPLATES } from '@masterskaya/shared';
+import { TASK_TEMPLATES, todayIso } from '@masterskaya/shared';
 
 import { useToast } from '../../components/Toast';
 import { api, query } from '../../lib/api';
@@ -18,7 +18,7 @@ export function NewTaskModal({
 }) {
   const [order, setOrder] = useState(orderId ? String(orderId) : '');
   const [title, setTitle] = useState('');
-  const [due, setDue] = useState(() => new Date().toISOString().slice(0, 10));
+  const [due, setDue] = useState(() => todayIso());
   const [time, setTime] = useState('');
   const [search, setSearch] = useState('');
 

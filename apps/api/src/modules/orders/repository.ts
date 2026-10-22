@@ -161,7 +161,14 @@ export async function logEvent(
 ) {
   const [row] = await database
     .insert(orderEvents)
-    .values({ orderId, type, message: message ?? null, payload: payload ?? null })
+    .values({
+      orderId,
+      type,
+      message: message ?? null,
+      payload: payload ?? null,
+      // Время задаём явно: значение по умолчанию в схеме — это UTC.
+      createdAt: nowSql(),
+    })
     .returning();
   return row!;
 }
@@ -205,6 +212,9 @@ export async function createOrder(
       promisedAt: data.promisedAt || null,
       notes: data.notes ?? null,
       warrantyMonths: data.warrantyMonths ?? 0,
+      // Время задаём явно: значение по умолчанию в схеме — это UTC.
+      acceptedAt: nowSql(),
+      createdAt: nowSql(),
     })
     .returning();
   return row!;

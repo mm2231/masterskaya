@@ -1,4 +1,11 @@
-/** Даты: хранение в ISO, показ в русском формате. */
+/**
+ * Даты: хранение в формате SQLite, показ в русском формате.
+ *
+ * Время в базе — **локальное время мастерской** (зона из
+ * TIMEZONE_OFFSET_HOURS, по умолчанию время операционной системы).
+ * Значения по умолчанию в схеме SQLite (datetime('now')) дают UTC —
+ * поэтому все времена задаются из кода явно.
+ */
 
 const MONTHS_GENITIVE = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -9,6 +16,48 @@ const MONTHS_SHORT = [
   'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
   'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
 ];
+
+/**
+ * Смещение часового пояса в часах.
+ *
+ * Читается из переменной окружения TIMEZONE_OFFSET_HOURS (3 — Минск,
+ * 2 — Калининград и т. д.). Если переменной нет или браузер — берём
+ * локальное время системы.
+ */
+export function timezoneOffsetHours(): number | null {
+  if (typeof process === 'undefined' || !process.env) return null;
+  const raw = process.env.TIMEZONE_OFFSET_HOURS;
+  if (raw === undefined || raw === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** Название зоны для интерфейса: «UTC+3» или «локальное время». */
+export function timezoneLabel(): string {
+  const offset = timezoneOffsetHours();
+  if (offset === null) return 'локальное время системы';
+  const sign = offset >= 0 ? '+' : '−';
+  const abs = Math.abs(offset);
+  const hours = Math.floor(abs);
+  const minutes = Math.round((abs - hours) * 60);
+  return minutes ? `UTC${sign}${hours}:${String(minutes).padStart(2, '0')}` : `UTC${sign}${hours}`;
+}
+
+/**
+ * Текущий момент, сдвинутый в зону мастерской.
+ *
+ * Возвращает «настенные» часы: для зоны UTC+3 к UTC-времени прибавляется
+ * три часа, а компоненты берутся как UTC-поля.
+ */
+function nowInZone(): Date | null {
+  const offset = timezoneOffsetHours();
+  if (offset === null) return null;
+  return new Date(Date.now() + offset * 3_600_000);
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
 
 function parse(value: unknown): Date | null {
   if (!value) return null;
@@ -61,12 +110,14 @@ export function formatDateShort(value: unknown): string {
   return `${String(date.getDate()).padStart(2, '0')} ${MONTHS_SHORT[date.getMonth()]}`;
 }
 
-/** Сегодняшняя дата в формате YYYY-MM-DD. */
+/** Сегодняшняя дата в формате YYYY-MM-DD — в зоне мастерской. */
 export function todayIso(): string {
+  const zoned = nowInZone();
+  if (zoned) {
+    return `${zoned.getUTCFullYear()}-${pad(zoned.getUTCMonth() + 1)}-${pad(zoned.getUTCDate())}`;
+  }
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate(),
-  ).padStart(2, '0')}`;
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /**
@@ -74,10 +125,19 @@ export function todayIso(): string {
  *
  * В базе все даты хранятся именно так — иначе строковое сравнение
  * в запросах по периоду ломается (ISO с «T» сравнивается с пробелом).
+ *
+ * Время — локальное для мастерской: если задан TIMEZONE_OFFSET_HOURS,
+ * считаем по нему, иначе берём время системы.
  */
 export function nowSql(): string {
+  const zoned = nowInZone();
+  if (zoned) {
+    return (
+      `${zoned.getUTCFullYear()}-${pad(zoned.getUTCMonth() + 1)}-${pad(zoned.getUTCDate())} ` +
+      `${pad(zoned.getUTCHours())}:${pad(zoned.getUTCMinutes())}:${pad(zoned.getUTCSeconds())}`
+    );
+  }
   const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
   return (
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
     `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`

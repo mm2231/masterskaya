@@ -1,6 +1,7 @@
 /** Работа с деньгами: платежи, расходы, сводка за период. */
 
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { nowSql } from '@masterskaya/shared';
 
 import type { AppDatabase } from '../../db.js';
 import { expenseCategories, orders, payments } from '@masterskaya/db';
@@ -54,7 +55,10 @@ export async function createPayment(
     note?: string | null;
   },
 ) {
-  const [row] = await database.insert(payments).values(data).returning();
+  const [row] = await database
+    .insert(payments)
+    .values({ ...data, createdAt: nowSql() })
+    .returning();
   return row!;
 }
 

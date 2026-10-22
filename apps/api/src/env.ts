@@ -13,6 +13,8 @@ const schema = z.object({
     .default('0')
     .transform((value) => ['1', 'true', 'yes', 'on'].includes(value.toLowerCase())),
   DATABASE_PATH: z.string().default('data/workshop.db'),
+  /** Смещение часового пояса в часах (3 — Минск). Пусто — время системы. */
+  TIMEZONE_OFFSET_HOURS: z.string().default(''),
   BACKUP_DIR: z.string().default('data/backups'),
   BACKUP_INTERVAL_HOURS: z.coerce.number().positive().default(24),
   BACKUP_KEEP: z.coerce.number().int().min(0).default(14),

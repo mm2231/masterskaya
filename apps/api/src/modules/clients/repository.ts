@@ -119,6 +119,8 @@ export async function createClient(
       viber: data.viber || null,
       note: data.note || null,
       tags: data.tags ?? [],
+      // Время задаём явно: значение по умолчанию в схеме — это UTC.
+      createdAt: nowSql(),
     })
     .returning();
   return row!;

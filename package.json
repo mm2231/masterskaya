@@ -31,6 +31,7 @@
     "data:import": "node scripts/import-data.mjs",
     "data:backup": "node scripts/backup-db.mjs",
     "backup:check": "node scripts/backup-check.mjs",
+    "fix:times": "node scripts/fix-times.mjs",
     "update:check": "node scripts/apply-update.mjs check",
     "update:install": "node scripts/apply-update.mjs install",
     "setup": "node scripts/setup.mjs",
