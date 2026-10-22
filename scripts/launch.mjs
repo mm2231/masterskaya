@@ -13,7 +13,15 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdirSync, openSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -105,22 +113,68 @@ function openBrowser(target) {
   }
 }
 
-/** Собрать приложение, если сборки ещё нет. */
-function build() {
-  say('Собираю приложение, первый запуск…');
+/** Собрать приложение. */
+function build(reason) {
+  say(reason);
+  // npm на Windows — это npm.cmd, его нельзя запустить без оболочки.
   const result = spawnSync('npm', ['run', 'build'], {
     cwd: appRoot,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell: true,
+    windowsHide: true,
   });
   return result.status === 0;
 }
 
+/** Самое свежее время изменения среди исходников. */
+function newestSourceTime() {
+  const roots = [
+    join(appRoot, 'apps', 'web', 'src'),
+    join(appRoot, 'apps', 'api', 'src'),
+    join(appRoot, 'packages', 'shared', 'src'),
+    join(appRoot, 'packages', 'db', 'src'),
+  ];
+  let newest = 0;
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    for (const entry of readdirSync(root, { withFileTypes: true, recursive: true })) {
+      if (!entry.isFile()) continue;
+      const time = statSync(join(entry.parentPath ?? root, entry.name)).mtimeMs;
+      if (time > newest) newest = time;
+    }
+  }
+  // package.json меняет состав команд — тоже повод пересобрать.
+  for (const file of ['package.json', 'package-lock.json']) {
+    const path = join(appRoot, file);
+    if (existsSync(path)) {
+      const time = statSync(path).mtimeMs;
+      if (time > newest) newest = time;
+    }
+  }
+  return newest;
+}
+
+/**
+ * Устарела ли сборка.
+ *
+ * Главный случай: обновление через git pull меняет исходники, но папка dist
+ * остаётся старой — и сервер отдаёт прежний интерфейс. Поэтому сравниваем
+ * время исходников со временем сборки и пересобираем, если она старше.
+ */
+function isBuildStale() {
+  if (!existsSync(serverEntry) || !existsSync(webIndex)) return true;
+  const sourceTime = newestSourceTime();
+  if (!sourceTime) return false;
+  const webTime = statSync(webIndex).mtimeMs;
+  const apiTime = existsSync(serverEntry) ? statSync(serverEntry).mtimeMs : 0;
+  return sourceTime > webTime || sourceTime > apiTime;
+}
+
 say('Запускаю «Мастерскую»…');
 
-// 1. Проверяем, что приложение собрано.
-if (!existsSync(serverEntry) || !existsSync(webIndex)) {
-  if (!build()) {
+// 1. Сборка должна быть свежей относительно исходников.
+if (isBuildStale()) {
+  if (!build('Исходники изменились — пересобираю приложение…')) {
     say('');
     say('✖ Не удалось собрать приложение. Подробности — в выводе выше.');
     process.exit(1);

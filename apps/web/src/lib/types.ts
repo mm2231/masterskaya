@@ -243,6 +243,16 @@ export interface Diagnostics {
     timezone: string;
     localTime: string;
   };
+  build: {
+    /** Когда собран интерфейс. */
+    webBuilt: string | null;
+    /** Когда собран сервер. */
+    apiBuilt: string | null;
+    /** Когда менялись исходники. */
+    newestSource: string | null;
+    /** Сборка отстаёт от исходников — интерфейс может быть старым. */
+    stale: boolean;
+  };
   database: {
     path: string;
     exists: boolean;

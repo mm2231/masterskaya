@@ -730,6 +730,18 @@ table.data .nowrap {
   white-space: nowrap;
 }
 
+/* Предупреждение в диагностике: сборка отстаёт от исходников. */
+.diag-warn {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 /* Блок диагностики в настройках. */
 .diag-block {
   margin-top: 14px;

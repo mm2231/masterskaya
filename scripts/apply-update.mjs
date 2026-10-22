@@ -55,12 +55,13 @@ function run(command, args, options = {}) {
 /**
  * Команда npm.
  *
- * На Windows npm — это npm.cmd, а execFile без shell такие файлы не запускает:
- * скрипт падал с ENOENT, и обновление не применялось. Поэтому на Windows
- * указываем npm.cmd явно.
+ * На Windows npm — это npm.cmd, а такие файлы нельзя запустить напрямую:
+ * execFile без оболочки возвращает ENOENT. Поэтому на всех системах
+ * запускаем через оболочку (shell: true), а windowsHide не даёт появиться
+ * чёрному окну консоли.
  */
-function npmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+function runNpm(args) {
+  return run('npm', args, { shell: true });
 }
 
 /** Есть ли в папке репозиторий git? */
@@ -229,22 +230,30 @@ if (mode === 'install') {
     run('git', ['pull', '--ff-only', 'origin', 'main']);
     say(`Забрано коммитов: ${before.remote.behind}`);
 
+    // Сервер останавливаем ДО сборки: на Windows работающий процесс держит
+    // файлы папки dist, и сборка падает с ошибкой вроде EPERM.
+    const port = resolvePort();
+    stopServer();
+
     say('Ставлю зависимости…');
-    run(npmCommand(), ['ci', '--no-audit', '--no-fund']);
+    runNpm(['ci', '--no-audit', '--no-fund']);
 
     // Новые миграции схемы — их тоже нужно применить.
     say('Применяю миграции…');
-    run(npmCommand(), ['run', 'db:migrate']);
+    runNpm(['run', 'db:migrate']);
 
     // Время в базе — в локальную зону (часть записей могла остаться в UTC).
     say('Проверяю время в базе…');
     run('node', ['scripts/fix-times.mjs']);
 
     say('Собираю приложение…');
-    run(npmCommand(), ['run', 'build']);
+    runNpm(['run', 'build']);
 
-    const port = resolvePort();
-    stopServer();
+    // Сборка должна была обновить интерфейс — проверяем.
+    const webIndex = join(appRoot, 'apps', 'web', 'dist', 'index.html');
+    if (!existsSync(webIndex)) {
+      throw new Error('после сборки нет apps/web/dist/index.html — интерфейс не собран');
+    }
 
     if (portBusy(port)) {
       say(`⚠ Порт ${port} занят другой программой — сервер не сможет запуститься.`);
@@ -260,7 +269,14 @@ if (mode === 'install') {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     say(`✖ Обновление не удалось: ${message}`);
-    say('Приложение продолжает работать на прежней версии.');
+    // Сервер мог быть остановлен до сборки — поднимаем его в любом случае,
+    // чтобы приложение осталось доступным.
+    try {
+      startServer(resolvePort());
+      say('Приложение запущено на прежней версии.');
+    } catch {
+      say('Запустите приложение вручную: «Запустить мастерскую».');
+    }
     process.exit(1);
   }
 }

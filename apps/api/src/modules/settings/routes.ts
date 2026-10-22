@@ -1,7 +1,7 @@
 /** HTTP-маршруты настроек: /api/settings… */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { platform, release, arch } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -13,6 +13,68 @@ import { db } from '../../db.js';
 import { repoRoot } from '../../env.js';
 import { exportAll, importAll } from './export.js';
 import { getSetting, getWorkshop, setSetting } from './repository.js';
+
+/** Версия приложения — из package.json в корне репозитория. */
+function appVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(resolve(repoRoot, 'package.json'), 'utf-8'),
+    ) as { version?: string };
+    return pkg.version ?? '—';
+  } catch {
+    return '—';
+  }
+}
+
+/**
+ * Состояние сборки: когда собраны интерфейс и сервер.
+ *
+ * Показывает, свежая ли загруженная версия: если дата сборки интерфейса
+ * старее даты изменения исходников — значит, обновление применило код,
+ * но не пересобрало интерфейс.
+ */
+function buildInfo() {
+  const timeOf = (relative: string) => {
+    const path = resolve(repoRoot, relative);
+    if (!existsSync(path)) return null;
+    return statSync(path).mtimeMs;
+  };
+
+  // Самый свежий исходник — для сравнения со временем сборки.
+  const roots = [
+    'apps/web/src',
+    'apps/api/src',
+    'packages/shared/src',
+    'packages/db/src',
+  ];
+  let newestSource = 0;
+  for (const root of roots) {
+    const dir = resolve(repoRoot, root);
+    if (!existsSync(dir)) continue;
+    for (const entry of readdirSync(dir, { withFileTypes: true, recursive: true })) {
+      if (!entry.isFile()) continue;
+      const time = statSync(join(entry.parentPath ?? dir, entry.name)).mtimeMs;
+      if (time > newestSource) newestSource = time;
+    }
+  }
+
+  const webTime = timeOf('apps/web/dist/index.html');
+  const apiTime = timeOf('apps/api/dist/server.js');
+  const format = (ms: number | null) =>
+    ms === null ? null : new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
+
+  return {
+    webBuilt: format(webTime),
+    apiBuilt: format(apiTime),
+    newestSource: format(newestSource || null),
+    /** Сборка отстаёт от исходников — интерфейс может быть старым. */
+    stale: Boolean(
+      newestSource &&
+        ((webTime !== null && webTime < newestSource) ||
+          (apiTime !== null && apiTime < newestSource)),
+    ),
+  };
+}
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -60,12 +122,13 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       app: {
         repoRoot,
         port: process.env.PORT ?? '—',
-        version: '2.0.0',
+        version: appVersion(),
         authEnabled: Boolean(process.env.APP_PASSWORD),
         /** Часовой пояс мастерской — время в базе хранится в нём. */
         timezone: timezoneLabel(),
         localTime: nowSql(),
       },
+      build: buildInfo(),
       database: {
         path: database,
         exists: existsSync(database),

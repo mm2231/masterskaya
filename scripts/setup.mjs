@@ -70,6 +70,24 @@ function ensureEnv() {
   return true;
 }
 
+/**
+ * Дописать часовой пояс в .env, если его там нет.
+ *
+ * По умолчанию — 3 (Минск и Москва). Без этого приложение считало бы время
+ * по часам операционной системы, а это не всегда одно и то же.
+ */
+function ensureTimezone() {
+  if (!existsSync(envFile)) return;
+  const content = readFileSync(envFile, 'utf-8');
+  if (/^TIMEZONE_OFFSET_HOURS=/m.test(content)) return;
+  const updated = content.replace(
+    /^/,
+    '# Часовой пояс мастерской: 3 — Минск и Москва.\nTIMEZONE_OFFSET_HOURS=3\n\n',
+  );
+  writeFileSync(envFile, updated, 'utf-8');
+  console.log('В .env добавлен часовой пояс (UTC+3).');
+}
+
 /** Создать папку для базы, бэкапов и выгрузок. */
 function ensureDataDir() {
   const dir = join(appRoot, 'data');
@@ -79,6 +97,7 @@ function ensureDataDir() {
 console.log('Настройка «Мастерской»…\n');
 checkNode();
 ensureEnv();
+ensureTimezone();
 ensureDataDir();
 
 // Пакеты shared и db собираем первыми: скрипты миграций и наполнения

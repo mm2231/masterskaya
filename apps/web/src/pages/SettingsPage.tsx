@@ -277,6 +277,25 @@ export function SettingsPage() {
                   </code>
                 </div>
                 <div className="diag-row">
+                  <span>Версия</span>
+                  <code>{diagnostics.data.app.version}</code>
+                </div>
+                <div className="diag-row">
+                  <span>Сборка</span>
+                  <code>
+                    интерфейс: {diagnostics.data.build.webBuilt ?? '—'}
+                    {' · сервер: '}
+                    {diagnostics.data.build.apiBuilt ?? '—'}
+                  </code>
+                </div>
+                {diagnostics.data.build.stale ? (
+                  <div className="diag-warn">
+                    ⚠ Сборка отстаёт от исходников (последнее изменение:{' '}
+                    {diagnostics.data.build.newestSource}). Интерфейс может быть
+                    старым — перезапустите приложение, оно пересоберётся само.
+                  </div>
+                ) : null}
+                <div className="diag-row">
                   <span>Порт</span>
                   <code>{diagnostics.data.app.port}</code>
                 </div>
