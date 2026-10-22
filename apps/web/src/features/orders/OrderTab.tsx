@@ -62,7 +62,7 @@ export function OrderTab({
                 style={{ width: 'auto', minHeight: 0 }}
               />
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                Обновить имя и в карточке клиента
+                Обновить имя во всех заказах этого клиента
               </span>
             </label>
           ) : null}

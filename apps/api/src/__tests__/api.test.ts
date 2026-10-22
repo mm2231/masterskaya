@@ -746,6 +746,96 @@ describe('экспорт и импорт данных', () => {
   });
 });
 
+describe('клиенты и заказы', () => {
+  it('клиент заводится сам при оформлении заказа', async () => {
+    const phone = '+375297654321';
+    const before = await app.inject({ method: 'GET', url: '/api/clients?q=297654321' });
+    const countBefore = before.json().items.length;
+
+    const { order } = await createOrder({
+      clientName: 'Сидоров',
+      clientPhone: phone,
+      clientTotal: 60,
+      costTotal: 25,
+      status: 'new',
+    });
+    expect(order.clientId).toBeTruthy();
+
+    const after = await app.inject({ method: 'GET', url: '/api/clients?q=297654321' });
+    expect(after.json().items.length).toBe(countBefore + 1);
+  });
+
+  it('повторный заказ с тем же телефоном не создаёт второго клиента', async () => {
+    const phone = '+375297654322';
+    await createOrder({ clientPhone: phone, clientTotal: 40, costTotal: 10, status: 'new' });
+    const second = await createOrder({
+      clientPhone: phone,
+      clientTotal: 50,
+      costTotal: 20,
+      status: 'new',
+    });
+    expect(second.order.clientId).toBeTruthy();
+
+    const list = await app.inject({ method: 'GET', url: '/api/clients?q=297654322' });
+    expect(list.json().items.length).toBe(1);
+  });
+
+  it('находит прошлые заказы по телефону', async () => {
+    const phone = '+375297654323';
+    await createOrder({
+      clientName: 'Петров',
+      clientPhone: phone,
+      deviceLabel: 'Redmi Note 9',
+      fault: 'Не включается',
+      clientTotal: 70,
+      costTotal: 30,
+      status: 'new',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/orders/by-phone?phone=' + encodeURIComponent(phone),
+    });
+    expect(response.statusCode).toBe(200);
+    const items = response.json().items;
+    expect(items.length).toBe(1);
+    expect(items[0].deviceLabel).toBe('Redmi Note 9');
+    expect(items[0].clientTotal).toBe(70);
+  });
+
+  it('обновляет имя клиента во всех его заказах', async () => {
+    const phone = '+375297654324';
+    const first = await createOrder({
+      clientName: 'Старое имя',
+      clientPhone: phone,
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+    await createOrder({
+      clientName: 'Старое имя',
+      clientPhone: phone,
+      clientTotal: 30,
+      costTotal: 10,
+      status: 'new',
+    });
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${first.order.id}`,
+      payload: { clientName: 'Новое имя', updateClientName: true },
+    });
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/orders/by-phone?phone=' + encodeURIComponent(phone),
+    });
+    for (const item of list.json().items) {
+      expect(item.clientName).toBe('Новое имя');
+    }
+  });
+});
+
 describe('время в записях', () => {
   it('заказ и акт записываются в локальной зоне, а не в UTC', async () => {
     // Зона UTC+3: записи должны быть на 3 часа позже, чем UTC.

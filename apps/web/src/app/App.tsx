@@ -3,8 +3,6 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { Layout } from './Layout';
-import { ClientsPage } from '../pages/ClientsPage';
-import { ClientCardPage } from '../pages/ClientCardPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { DocumentsPage } from '../pages/DocumentsPage';
 import { FinancePage } from '../pages/FinancePage';
@@ -24,8 +22,6 @@ export function App() {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderCardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/clients" element={<ClientsPage />} />
-        <Route path="/clients/:id" element={<ClientCardPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/finance" element={<FinancePage />} />
         <Route path="/settings" element={<SettingsPage />} />

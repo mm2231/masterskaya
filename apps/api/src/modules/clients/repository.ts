@@ -90,6 +90,30 @@ export async function findByPhone(database: AppDatabase, phone: string) {
   return database.select().from(clients).where(eq(clients.phone, phone)).get();
 }
 
+/**
+ * Найти клиента по телефону или завести нового.
+ *
+ * Нужен при оформлении заказа: клиент заводится сам, руками ничего
+ * в справочнике заполнять не нужно. По телефону ищется точно — в базе
+ * телефон уникален.
+ */
+export async function findOrCreateClient(
+  database: AppDatabase,
+  data: { name?: string | null; phone: string },
+) {
+  const phone = data.phone.trim();
+  const existing = await findByPhone(database, phone);
+  if (existing) return existing;
+
+  // Телефон может быть пустым у клиента — тогда клиента не заводим.
+  if (!phone) return null;
+
+  return createClient(database, {
+    name: data.name?.trim() || 'Клиент без имени',
+    phone,
+  });
+}
+
 /** Телефоны всех клиентов — для проверки уникальности при импорте. */
 export async function allPhones(database: AppDatabase): Promise<string[]> {
   const rows = await database.select({ phone: clients.phone }).from(clients).all();

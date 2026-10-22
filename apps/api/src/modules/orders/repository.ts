@@ -39,6 +39,45 @@ export interface OrderListItem {
   documentsCount: number;
 }
 
+/**
+ * Прошлые заказы по телефону клиента.
+ *
+ * Нужны при оформлении нового заказа: мастер вводит телефон и сразу видит,
+ * что у клиента уже чинили и за сколько. Ищется по совпадению цифр —
+ * телефон могли записать по-разному.
+ */
+export async function findOrdersByPhone(
+  database: AppDatabase,
+  phone: string,
+  limit = 5,
+) {
+  const digits = phone.replace(/\D/g, '');
+  // Ищем по полному телефону и по его последним 9 цифрам.
+  const patterns = digits.length >= 9 ? [phone, digits.slice(-9)] : [phone];
+
+  const conditions = patterns.map((pattern) =>
+    like(orders.clientPhone, `%${pattern}%`),
+  );
+
+  return database
+    .select({
+      id: orders.id,
+      number: orders.number,
+      clientName: orders.clientName,
+      deviceLabel: orders.deviceLabel,
+      fault: orders.fault,
+      workDescription: orders.workDescription,
+      clientTotal: orders.clientTotal,
+      status: orders.status,
+      acceptedAt: orders.acceptedAt,
+    })
+    .from(orders)
+    .where(or(...conditions))
+    .orderBy(desc(orders.acceptedAt))
+    .limit(limit)
+    .all();
+}
+
 /** Список заказов с фильтрами. */
 export async function listOrders(
   database: AppDatabase,

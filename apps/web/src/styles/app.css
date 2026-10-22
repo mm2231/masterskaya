@@ -672,6 +672,64 @@ table.data .nowrap {
   line-height: 1.4;
 }
 
+/* Прошлые заказы клиента — подсказка при оформлении нового заказа. */
+.past-orders {
+  margin: -4px 0 14px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.past-orders-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.past-order {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.past-order:hover {
+  border-color: var(--primary);
+}
+
+.past-order-device {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.past-order-what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.past-order-meta {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* Блок диагностики в настройках. */
 .diag-block {
   margin-top: 14px;

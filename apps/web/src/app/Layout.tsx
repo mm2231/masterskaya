@@ -21,7 +21,6 @@ const NAV: NavEntry[] = [
   { to: '/', icon: '📊', label: 'Дашборд' },
   { to: '/orders', icon: '🔧', label: 'Заказы', countKey: 'open' },
   { to: '/tasks', icon: '✅', label: 'Задачи', taskCount: true },
-  { to: '/clients', icon: '👥', label: 'Клиенты' },
   { to: '/documents', icon: '📄', label: 'Акты' },
   { to: '/finance', icon: '💰', label: 'Финансы' },
   { to: '/settings', icon: '⚙️', label: 'Настройки' },
@@ -30,16 +29,14 @@ const NAV: NavEntry[] = [
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Дашборд',
   '/orders': 'Заказы',
-  '/clients': 'Клиенты',
   '/documents': 'Акты',
   '/finance': 'Финансы',
   '/settings': 'Настройки',
 };
 
-/** Заголовок для вложенных страниц: /orders/12 → «Заказ», /clients/3 → «Клиент». */
+/** Заголовок для вложенных страниц: /orders/12 → «Карточка заказа». */
 function titleFromPath(path: string): string {
   if (path.startsWith('/orders/')) return 'Карточка заказа';
-  if (path.startsWith('/clients/')) return 'Карточка клиента';
   return 'Мастерская';
 }
 

@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '../../components/Toast';
 import { api } from '../../lib/api';
-import type { Client, Order } from '../../lib/types';
+import { formatDateShort, formatMoney } from '../../lib/format';
+import type { Order, PastOrder } from '../../lib/types';
 
 export function NewOrderModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
@@ -17,18 +18,19 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
   const [work, setWork] = useState('');
   const [clientTotal, setClientTotal] = useState('');
   const [costTotal, setCostTotal] = useState('');
-  const [clientId, setClientId] = useState<number | null>(null);
 
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Подсказки клиентов по телефону.
-  const suggest = useQuery({
-    queryKey: ['client-suggest', phone],
+  // Прошлые заказы по телефону: что у клиента уже чинили и за сколько.
+  const history = useQuery({
+    queryKey: ['orders-by-phone', phone],
     queryFn: () =>
-      api.get<{ clients: Client[] }>(`/api/clients/suggest?q=${encodeURIComponent(phone)}`),
-    enabled: phone.trim().length >= 3,
+      api.get<{ items: PastOrder[] }>(
+        `/api/orders/by-phone?phone=${encodeURIComponent(phone)}`,
+      ),
+    enabled: phone.trim().length >= 5,
   });
 
   const create = useMutation({
@@ -53,7 +55,6 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
     }
     const cost = Number(costTotal.replace(',', '.'));
     create.mutate({
-      clientId: clientId ?? undefined,
       clientName: name.trim() || undefined,
       clientPhone: phone.trim() || undefined,
       deviceLabel: device.trim() || undefined,
@@ -77,10 +78,7 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
               <span className="field-label">Клиент</span>
               <input
                 value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setClientId(null);
-                }}
+                onChange={(event) => setName(event.target.value)}
                 placeholder="Имя клиента"
               />
             </label>
@@ -88,38 +86,39 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
               <span className="field-label">Телефон</span>
               <input
                 value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  setClientId(null);
-                }}
+                onChange={(event) => setPhone(event.target.value)}
                 placeholder="+375291234567"
                 list="client-suggest"
               />
             </label>
           </div>
 
-          <datalist id="client-suggest">
-            {suggest.data?.clients.map((client) => (
-              <option key={client.id} value={client.phone}>
-                {client.name}
-              </option>
-            ))}
-          </datalist>
-
-          {suggest.data?.clients.length ? (
-            <div className="chips" style={{ marginBottom: 14 }}>
-              {suggest.data.clients.map((client) => (
+          {history.data?.items.length ? (
+            <div className="past-orders">
+              <div className="past-orders-title">
+                У этого клиента уже были заказы — нажмите, чтобы подставить
+              </div>
+              {history.data.items.map((item) => (
                 <button
-                  key={client.id}
+                  key={item.id}
                   type="button"
-                  className="chip"
+                  className="past-order"
                   onClick={() => {
-                    setClientId(client.id);
-                    setName(client.name);
-                    setPhone(client.phone);
+                    if (!name.trim() && item.clientName) setName(item.clientName);
+                    if (!device.trim() && item.deviceLabel) setDevice(item.deviceLabel);
+                    if (!fault.trim() && item.fault) setFault(item.fault);
+                    if (!work.trim() && item.workDescription) setWork(item.workDescription);
                   }}
                 >
-                  {client.name || 'Без имени'} · {client.phone}
+                  <span className="past-order-device">
+                    {item.deviceLabel ?? 'без устройства'}
+                  </span>
+                  <span className="past-order-what">
+                    {item.fault || item.workDescription || 'без описания'}
+                  </span>
+                  <span className="past-order-meta">
+                    {formatDateShort(item.acceptedAt)} · {formatMoney(item.clientTotal)}
+                  </span>
                 </button>
               ))}
             </div>

@@ -13,13 +13,15 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 
 import { db } from '../../db.js';
-import { clients } from '@masterskaya/db';
+import { clients, orders } from '@masterskaya/db';
+import { findOrCreateClient } from '../clients/repository.js';
 import { getSetting } from '../settings/repository.js';
 import { nextOrderNumber } from './numbering.js';
 import {
   countByStatus,
   createOrder,
   deleteOrder,
+  findOrdersByPhone,
   getOrderWithClient,
   listOrders,
   logEvent,
@@ -66,6 +68,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * Прошлые заказы по телефону — подсказка при оформлении нового заказа.
+   */
+  app.get('/api/orders/by-phone', async (request) => {
+    const query = request.query as { phone?: string };
+    const phone = query.phone?.trim() ?? '';
+    if (phone.length < 5) return { items: [] };
+    const items = await findOrdersByPhone(db(), phone);
+    return { items };
+  });
+
   app.post('/api/orders', async (request, reply) => {
     const parsed = orderInputSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -84,7 +97,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const pattern = (await getSetting<string>(db(), 'orderNumberPattern')) ?? '{YYYY}-{SEQ}';
     const number = await nextOrderNumber(db(), pattern);
 
-    const order = await createOrder(db(), { ...data, number });
+    // Клиент заводится сам: справочник наполняется по мере оформления
+    // заказов, руками ничего заполнять не нужно.
+    const phone = data.clientPhone?.trim();
+    let clientId = data.clientId ?? null;
+    if (!clientId && phone) {
+      const client = await findOrCreateClient(db(), { name: data.clientName, phone });
+      clientId = client?.id ?? null;
+    }
+
+    const order = await createOrder(db(), { ...data, number, clientId });
     await logEvent(db(), order.id, 'created', `Заказ ${number} создан`, {
       status: order.status,
     });
@@ -178,12 +200,19 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         { from: current.order.clientName, to: data.clientName },
       );
 
-      // По просьбе меняем имя и в справочнике клиентов.
+      // По просьбе меняем имя у клиента и во всех его заказах: в заказах
+      // хранится копия имени, и без этого они расходятся.
       if (alsoUpdateClient && current.order.clientId && data.clientName) {
+        const name = String(data.clientName);
         await db()
           .update(clients)
-          .set({ name: String(data.clientName), updatedAt: nowSql() })
+          .set({ name, updatedAt: nowSql() })
           .where(eq(clients.id, current.order.clientId))
+          .run();
+        await db()
+          .update(orders)
+          .set({ clientName: name })
+          .where(eq(orders.clientId, current.order.clientId))
           .run();
       }
     }

@@ -209,6 +209,19 @@ export interface TodayData {
   }[];
 }
 
+/** Прошлый заказ клиента — подсказка при оформлении нового. */
+export interface PastOrder {
+  id: number;
+  number: string;
+  clientName: string | null;
+  deviceLabel: string | null;
+  fault: string | null;
+  workDescription: string | null;
+  clientTotal: number;
+  status: OrderStatusCode | string;
+  acceptedAt: string;
+}
+
 /** Состояние репозитория: текущий коммит и данные с GitHub. */
 export interface UpdateStatus {
   ok: boolean;
