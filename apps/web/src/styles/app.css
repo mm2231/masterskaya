@@ -474,6 +474,14 @@ table.data .nowrap {
   margin-bottom: 5px;
 }
 
+/* Подсказка под полем: поясняет, что произойдёт с введённым значением. */
+.field-hint {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
 /* Кнопка-ссылка внутри подписи поля. */
 .link-btn {
   margin-left: 6px;
@@ -646,6 +654,22 @@ table.data .nowrap {
 
 .task-title {
   font-weight: 550;
+}
+
+/* Приглушённый текст: пустые значения, подсказки. */
+.muted {
+  color: var(--text-faint);
+}
+
+/* Комментарий к движению денег: виден, но не перетягивает внимание. */
+.payment-note {
+  /* В таблицах с auto-layout влияет width, а не max-width. */
+  width: 280px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 /* Блок диагностики в настройках. */

@@ -79,6 +79,17 @@ export const paymentInputSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentInputSchema>;
 
+/** Правка записи о движении денег: сумма, категория, дата, комментарий. */
+export const paymentPatchSchema = z.object({
+  amount: z.number().positive('Сумма должна быть больше нуля').optional(),
+  method: z.enum(['cash', 'card', 'invoice', 'other']).optional(),
+  category: z.string().trim().max(100).optional().or(z.literal('')),
+  occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД').optional(),
+  note: z.string().trim().max(1000).optional().or(z.literal('')),
+});
+
+export type PaymentPatch = z.infer<typeof paymentPatchSchema>;
+
 export const documentInputSchema = z.object({
   orderId: z.number().int().positive(),
   kind: z.enum(['acceptance', 'works']),

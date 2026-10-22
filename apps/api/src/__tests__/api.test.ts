@@ -378,6 +378,91 @@ describe('финансы', () => {
     expect(after.json().summary.profit).toBe(profitBefore - 30);
   });
 
+  it('изменяет запись: сумму, категорию и комментарий', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/finance/payments',
+      payload: {
+        direction: 'out',
+        amount: 30,
+        method: 'cash',
+        category: 'Аренда',
+        occurredOn: '2026-10-01',
+        note: 'Аренда за сентябрь',
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().payment.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/finance/payments/${id}`,
+      payload: {
+        amount: 45,
+        category: 'Налоги',
+        note: 'Закупка телефонов на запчасти + налоги',
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const payment = response.json().payment;
+    expect(payment.amount).toBe(45);
+    expect(payment.category).toBe('Налоги');
+    expect(payment.note).toBe('Закупка телефонов на запчасти + налоги');
+  });
+
+  it('пустой комментарий снимает его, а не оставляет пустую строку', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/finance/payments',
+      payload: {
+        direction: 'out',
+        amount: 30,
+        method: 'cash',
+        occurredOn: '2026-10-01',
+        note: 'Был комментарий',
+      },
+    });
+    const id = created.json().payment.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/finance/payments/${id}`,
+      payload: { note: '' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().payment.note).toBeNull();
+  });
+
+  it('не меняет несуществующую запись', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/finance/payments/999999',
+      payload: { amount: 10 },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('не принимает неправильную сумму при правке', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/finance/payments',
+      payload: {
+        direction: 'out',
+        amount: 30,
+        method: 'cash',
+        occurredOn: '2026-10-01',
+      },
+    });
+    const id = created.json().payment.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/finance/payments/${id}`,
+      payload: { amount: -5 },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
   it('сводит выданное за сегодня в отдельную сводку', async () => {
     const { order } = await createOrder({ clientTotal: 120, costTotal: 50, status: 'new' });
     await app.inject({

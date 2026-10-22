@@ -28,8 +28,20 @@ export function PaymentForm() {
   });
 
   const create = useMutation({
-    mutationFn: (payload: Record<string, unknown>) =>
-      api.post('/api/finance/payments', payload),
+    mutationFn: async (payload: Record<string, unknown>) => {
+      // Если категории нет в справочнике — заводим её, чтобы в следующий раз
+      // она была в подсказках. Ошибка здесь не должна мешать записать расход.
+      const name = String(payload.category ?? '').trim();
+      if (name && !categories.data?.items.some((item) => item.name === name)) {
+        try {
+          await api.post('/api/finance/categories', { name, kind: 'variable' });
+          void queryClient.invalidateQueries({ queryKey: ['expense-categories'] });
+        } catch {
+          // Категория не создалась — расход всё равно запишем.
+        }
+      }
+      return api.post('/api/finance/payments', payload);
+    },
     onSuccess: () => {
       toast.show('Запись добавлена', 'success');
       setAmount('');
@@ -86,14 +98,17 @@ export function PaymentForm() {
             </label>
             <label className="field">
               <span className="field-label">Категория</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)}>
-                <option value="">— не выбрана —</option>
+              <input
+                list="expense-categories-list"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                placeholder="Например: Налоги"
+              />
+              <datalist id="expense-categories-list">
                 {categories.data?.items.map((item) => (
-                  <option key={item.id} value={item.name}>
-                    {item.name}
-                  </option>
+                  <option key={item.id} value={item.name} />
                 ))}
-              </select>
+              </datalist>
             </label>
             <label className="field">
               <span className="field-label">Дата</span>
@@ -107,12 +122,17 @@ export function PaymentForm() {
 
           <label className="field">
             <span className="field-label">Комментарий</span>
-            <input
+            <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder="Аренда за октябрь, защитное стекло и т.п."
+              placeholder="Например: закупка телефонов на запчасти, налоги за 3 месяц, аренда"
+              rows={2}
             />
           </label>
+          <p className="field-hint">
+            Комментарий сохраняется вместе с расходом и виден в таблице ниже и в
+            выгрузке в Excel — так видно, куда ушли деньги.
+          </p>
 
           <div className="form-actions">
             <button type="submit" className="btn primary" disabled={create.isPending}>

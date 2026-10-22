@@ -58,6 +58,22 @@ export async function createPayment(
   return row!;
 }
 
+/** Изменить запись о движении денег. */
+export async function updatePayment(
+  database: AppDatabase,
+  id: number,
+  data: {
+    amount?: number;
+    method?: string;
+    category?: string | null;
+    occurredOn?: string;
+    note?: string | null;
+  },
+) {
+  const [row] = await database.update(payments).set(data).where(eq(payments.id, id)).returning();
+  return row ?? null;
+}
+
 /** Удалить платёж. */
 export async function deletePayment(database: AppDatabase, id: number): Promise<boolean> {
   const result = await database.delete(payments).where(eq(payments.id, id)).run();

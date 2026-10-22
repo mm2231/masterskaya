@@ -1,6 +1,6 @@
 /** HTTP-маршруты финансов: /api/finance… */
 
-import { paymentInputSchema, summarize, todayIso } from '@masterskaya/shared';
+import { paymentInputSchema, paymentPatchSchema, summarize, todayIso } from '@masterskaya/shared';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -17,6 +17,7 @@ import {
   manualIncomeInPeriod,
   orderPaid,
   paymentsOnDay,
+  updatePayment,
 } from './repository.js';
 
 /** Границы периода: из запроса или текущий месяц. */
@@ -137,6 +138,38 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     return reply.code(201).send({ payment });
   });
 
+  app.patch<{ Params: { id: string } }>(
+    '/api/finance/payments/:id',
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      const parsed = paymentPatchSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'Проверьте данные', details: parsed.error.issues });
+      }
+      const data = parsed.data;
+
+      const changes: {
+        amount?: number;
+        method?: string;
+        category?: string | null;
+        occurredOn?: string;
+        note?: string | null;
+      } = {};
+      if (data.amount !== undefined) changes.amount = data.amount;
+      if (data.method !== undefined) changes.method = data.method;
+      // Пустая категория или комментарий — это отсутствие значения, а не пустая строка.
+      if (data.category !== undefined) changes.category = data.category || null;
+      if (data.occurredOn !== undefined) changes.occurredOn = data.occurredOn;
+      if (data.note !== undefined) changes.note = data.note || null;
+
+      const payment = await updatePayment(db(), id, changes);
+      if (!payment) {
+        return reply.code(404).send({ error: 'Запись не найдена' });
+      }
+      return { payment };
+    },
+  );
+
   app.delete<{ Params: { id: string } }>(
     '/api/finance/payments/:id',
     async (request, reply) => {
@@ -205,7 +238,8 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         '',
         order.number,
         order.clientName ?? '',
-        order.deviceLabel ?? '',
+        // Что делали по заказу; если описания нет — устройство.
+        order.workDescription || order.deviceLabel || '',
       ]);
     }
     for (const item of items) {

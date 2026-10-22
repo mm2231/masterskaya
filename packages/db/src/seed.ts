@@ -27,10 +27,12 @@ export interface WorkshopInfo {
 const DEFAULT_EXPENSE_CATEGORIES: { name: string; kind: 'fixed' | 'variable' }[] = [
   { name: 'Аренда', kind: 'fixed' },
   { name: 'Зарплата', kind: 'fixed' },
+  { name: 'Налоги', kind: 'fixed' },
+  { name: 'Связь и интернет', kind: 'fixed' },
   { name: 'Запчасти', kind: 'variable' },
+  { name: 'Закупка техники', kind: 'variable' },
   { name: 'Инструмент и расходники', kind: 'variable' },
   { name: 'Реклама', kind: 'variable' },
-  { name: 'Связь и интернет', kind: 'fixed' },
   { name: 'Прочее', kind: 'variable' },
 ];
 

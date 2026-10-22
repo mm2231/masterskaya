@@ -10,10 +10,15 @@ import { api, query } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import type { FinanceSummary, Payment } from '../lib/types';
 import { PaymentForm } from '../features/finance/PaymentForm';
+import { EditPaymentModal } from '../features/finance/EditPaymentModal';
 
 export function FinancePage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  /** Фильтр по типу операции: пусто — все. */
+  const [direction, setDirection] = useState<'' | 'in' | 'out'>('');
+  // Запись, которую сейчас правим (null — модалка закрыта).
+  const [editing, setEditing] = useState<Payment | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -23,8 +28,11 @@ export function FinancePage() {
   });
 
   const payments = useQuery({
-    queryKey: ['finance-payments', from, to],
-    queryFn: () => api.get<{ items: Payment[] }>('/api/finance/payments' + query({ from, to, limit: 300 })),
+    queryKey: ['finance-payments', from, to, direction],
+    queryFn: () =>
+      api.get<{ items: Payment[] }>(
+        '/api/finance/payments' + query({ from, to, direction, limit: 300 }),
+      ),
   });
 
   const remove = useMutation({
@@ -73,6 +81,29 @@ export function FinancePage() {
             Сбросить
           </button>
         ) : null}
+        <div className="chips" style={{ marginLeft: 'auto' }}>
+          <button
+            type="button"
+            className={`chip ${direction === '' ? 'active' : ''}`}
+            onClick={() => setDirection('')}
+          >
+            Все
+          </button>
+          <button
+            type="button"
+            className={`chip ${direction === 'out' ? 'active' : ''}`}
+            onClick={() => setDirection('out')}
+          >
+            Расходы
+          </button>
+          <button
+            type="button"
+            className={`chip ${direction === 'in' ? 'active' : ''}`}
+            onClick={() => setDirection('in')}
+          >
+            Доходы
+          </button>
+        </div>
       </div>
 
       <div className="kpi-grid">
@@ -135,6 +166,7 @@ export function FinancePage() {
                   <th>Дата</th>
                   <th>Тип</th>
                   <th>Категория</th>
+                  <th>Комментарий</th>
                   <th>Заказ</th>
                   <th>Клиент</th>
                   <th className="num">Сумма</th>
@@ -148,7 +180,14 @@ export function FinancePage() {
                     <td className="nowrap">
                       {payment.direction === 'in' ? 'Доход' : 'Расход'}
                     </td>
-                    <td>{payment.category || payment.method}</td>
+                    <td>
+                      {payment.category || (
+                        <span className="muted">Без категории</span>
+                      )}
+                    </td>
+                    <td className="payment-note">
+                      {payment.note || <span className="muted">—</span>}
+                    </td>
                     <td className="nowrap">
                       {payment.orderId ? (
                         <Link className="row-link" to={`/orders/${payment.orderId}`}>
@@ -172,6 +211,14 @@ export function FinancePage() {
                       <div className="row-actions">
                         <button
                           type="button"
+                          className="btn sm"
+                          onClick={() => setEditing(payment)}
+                          title="Изменить запись"
+                        >
+                          Изменить
+                        </button>
+                        <button
+                          type="button"
                           className="btn sm danger"
                           onClick={() => {
                             if (window.confirm('Удалить запись?')) remove.mutate(payment.id);
@@ -188,6 +235,8 @@ export function FinancePage() {
           )}
         </div>
       </section>
+
+      {editing ? <EditPaymentModal payment={editing} onClose={() => setEditing(null)} /> : null}
     </>
   );
 }
