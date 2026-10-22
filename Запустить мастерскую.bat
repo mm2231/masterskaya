@@ -24,12 +24,10 @@ if errorlevel 1 (
 
 rem Проверяем версию: для Node младше 22 у SQLite-модуля нет готовых
 rem бинарников, и установка зависимостей падает с ошибкой сборки.
+rem Проверку делает сам Node — так надёжнее, чем разбирать строку в batch.
 for /f "delims=" %%V in ('node -v') do set "NODE_VER=%%V"
-echo| findstr /c:"v22." >nul && goto :run
-echo| findstr /c:"v23." >nul && goto :run
-echo| findstr /c:"v24." >nul && goto :run
-echo| findstr /c:"v25." >nul && goto :run
-echo| findstr /c:"v26." >nul && goto :run
+node -e "process.exit(parseInt(process.versions.node,10)>=22?0:1)"
+if not errorlevel 1 goto :run
 echo.
 echo Node.js %NODE_VER% слишком старый - нужно 22 или новее.
 echo Запустите в этой папке install.cmd - он поставит подходящую версию.

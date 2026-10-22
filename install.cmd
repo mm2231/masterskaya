@@ -12,7 +12,7 @@ rem  зависимости и подготовит базу.
 rem ═══════════════════════════════════════════════════════════════════
 cd /d "%~dp0"
 
-set "NODE_VER=v22.23.4"
+set "NODE_LOCAL_VER=v22.23.4"
 set "LOCAL_NODE=%CD%\.node"
 
 echo.
@@ -27,25 +27,22 @@ if exist "%LOCAL_NODE%\node.exe" (
 )
 
 rem Проверяем версию системного Node. Нужен 22 или новее: только для этих
-rem версий у SQLite-модуля есть готовые бинарники (под 24 их тоже нет,
-rem поэтому 22 - самый надёжный выбор).
-set "NODE_MAJOR="
-for /f "delims=" %%V in ('node -v 2^>nul') do set "NODE_MAJOR=%%V"
-if defined NODE_MAJOR (
-  echo Найден системный Node.js %NODE_MAJOR%.
-  echo| findstr /c:"v22." >nul && goto :deps
-  echo| findstr /c:"v23." >nul && goto :deps
-  echo| findstr /c:"v24." >nul && goto :deps
-  echo| findstr /c:"v25." >nul && goto :deps
-  echo| findstr /c:"v26." >nul && goto :deps
-  echo Эта версия не подходит - ставлю свою, Node.js %NODE_VER%.
+rem версий у SQLite-модуля есть готовые бинарники.
+rem Проверку делает сам Node — так надёжнее, чем разбирать строку в batch.
+set "NODE_VER="
+for /f "delims=" %%V in ('node -v 2^>nul') do set "NODE_VER=%%V"
+if defined NODE_VER (
+  echo Найден системный Node.js %NODE_VER%.
+  node -e "process.exit(parseInt(process.versions.node,10)>=22?0:1)"
+  if not errorlevel 1 goto :deps
+  echo Эта версия не подходит - ставлю свою, Node.js %NODE_LOCAL_VER%.
 ) else (
-  echo Node.js не найден - ставлю его сам, версия %NODE_VER%.
+  echo Node.js не найден - ставлю его сам, версия %NODE_LOCAL_VER%.
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
-  "$url='https://nodejs.org/dist/%NODE_VER%/node-%NODE_VER%-win-x64.zip';" ^
+  "$url='https://nodejs.org/dist/%NODE_LOCAL_VER%/node-%NODE_LOCAL_VER%-win-x64.zip';" ^
   "$tmp=Join-Path $env:TEMP ('node-'+[guid]::NewGuid().ToString('N'));" ^
   "New-Item -ItemType Directory -Force -Path $tmp | Out-Null;" ^
   "Write-Host '  Скачиваю Node.js...';" ^
@@ -54,7 +51,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "Write-Host '  Распаковываю...';" ^
   "Expand-Archive -Path $zip -DestinationPath $tmp -Force;" ^
   "New-Item -ItemType Directory -Force -Path '%LOCAL_NODE%' | Out-Null;" ^
-  "Copy-Item -Path (Join-Path $tmp 'node-%NODE_VER%-win-x64\*') -Destination '%LOCAL_NODE%' -Recurse -Force;" ^
+  "Copy-Item -Path (Join-Path $tmp 'node-%NODE_LOCAL_VER%-win-x64\*') -Destination '%LOCAL_NODE%' -Recurse -Force;" ^
   "Remove-Item -Recurse -Force $tmp;" ^
   "Write-Host '  Node.js установлен в .\.node'"
 if errorlevel 1 (
@@ -67,8 +64,8 @@ if errorlevel 1 (
   exit /b 1
 )
 set "PATH=%LOCAL_NODE%;%PATH%"
-for /f "delims=" %%V in ('node -v') do set "NODE_MAJOR=%%V"
-echo Готово: Node.js %NODE_MAJOR% ^(в папке .\.node^)
+for /f "delims=" %%V in ('node -v') do set "NODE_VER=%%V"
+echo Готово: Node.js %NODE_VER% ^(в папке .\.node^)
 
 rem ── 2. Зависимости ───────────────────────────────────────────────────────
 :deps
