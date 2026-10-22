@@ -246,8 +246,19 @@ if (mode === 'install') {
     say('Проверяю время в базе…');
     run('node', ['scripts/fix-times.mjs']);
 
-    say('Собираю приложение…');
-    runNpm(['run', 'build']);
+    // Пересборку и перезапуск делает отдельный скрипт: он уже новый
+    // (запускается после git pull), и в нём правильный порядок —
+    // сначала остановить сервер, потом собирать. Старый обновляющий скрипт
+    // собирал при работающем сервере, и на Windows это падало.
+    const builder = join(appRoot, 'scripts', 'build-app.mjs');
+    const restarted = existsSync(builder);
+    if (restarted) {
+      say('Собираю и перезапускаю…');
+      run('node', ['scripts/build-app.mjs']);
+    } else {
+      say('Собираю приложение…');
+      runNpm(['run', 'build']);
+    }
 
     // Сборка должна была обновить интерфейс — проверяем.
     const webIndex = join(appRoot, 'apps', 'web', 'dist', 'index.html');
@@ -255,12 +266,13 @@ if (mode === 'install') {
       throw new Error('после сборки нет apps/web/dist/index.html — интерфейс не собран');
     }
 
-    if (portBusy(port)) {
-      say(`⚠ Порт ${port} занят другой программой — сервер не сможет запуститься.`);
-      say('  Освободите порт и запустите приложение вручную.');
+    if (!restarted) {
+      if (portBusy(port)) {
+        say(`⚠ Порт ${port} занят другой программой — сервер не сможет запуститься.`);
+        say('  Освободите порт и запустите приложение вручную.');
+      }
+      startServer(port);
     }
-
-    startServer(port);
 
     const after = currentCommit();
     say(`✔ Обновление установлено: ${after.short} — ${after.subject}`);
