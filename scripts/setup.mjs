@@ -38,13 +38,15 @@ function run(command, args) {
   }
 }
 
-/** Проверить версию Node — нужна 20.11 или новее. */
+/** Проверить версию Node — нужна 22 или новее. */
 function checkNode() {
-  const [major, minor] = process.versions.node.split('.').map(Number);
-  if (major < 20 || (major === 20 && minor < 11)) {
+  const [major] = process.versions.node.split('.').map(Number);
+  if (major < 22) {
     console.error(
-      `Нужен Node.js 20.11 или новее, а сейчас ${process.versions.node}.\n` +
-        'Скачать: https://nodejs.org',
+      `Нужен Node.js 22 или новее, а сейчас ${process.versions.node}.\n` +
+        'Для более старых версий у модуля SQLite нет готовых бинарников,\n' +
+        'и установка падает с ошибкой сборки из исходников.\n' +
+        'Скачать Node.js 22 LTS: https://nodejs.org',
     );
     process.exit(1);
   }

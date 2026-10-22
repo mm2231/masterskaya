@@ -1,9 +1,10 @@
 /**
  * Подстановка нативного модуля SQLite под версию Node на этой машине.
  *
- * Пакет содержит готовые бинарники для Node 20 (ABI 115) и Node 22 (ABI 127).
- * Скрипт выбирает нужный по версии Node и кладёт на место, куда его ищет
- * better-sqlite3: node_modules/better-sqlite3/build/Release/better_sqlite3.node
+ * Пакет содержит готовые бинарники для Node 22 (ABI 127), 24 (137),
+ * 25 (141) и 26 (147). Скрипт выбирает нужный по версии Node и кладёт
+ * на место, куда его ищет better-sqlite3:
+ * node_modules/better-sqlite3/build/Release/better_sqlite3.node
  *
  * Запуск: node scripts/prepare-native.mjs [корень-приложения]
  */
@@ -27,8 +28,10 @@ const target = join(
 
 /** Готовые бинарники: ABI версии Node → файл. */
 const BINARIES = {
-  115: 'better_sqlite3.node.v115',
   127: 'better_sqlite3.node.v127',
+  137: 'better_sqlite3.node.v137',
+  141: 'better_sqlite3.node.v141',
+  147: 'better_sqlite3.node.v147',
 };
 
 const source = join(appRoot, 'sqlite-binaries', BINARIES[abi] ?? '');
@@ -39,8 +42,10 @@ if (!BINARIES[abi]) {
       `Не найден готовый модуль SQLite для Node.js ${process.version} (ABI ${abi}).`,
       '',
       'Поддерживаются:',
-      '  • Node.js 20.x (ABI 115)',
       '  • Node.js 22.x (ABI 127)',
+      '  • Node.js 24.x (ABI 137)',
+      '  • Node.js 25.x (ABI 141)',
+      '  • Node.js 26.x (ABI 147)',
       '',
       'Установите Node.js 22 LTS с https://nodejs.org и запустите скрипт заново.',
     ].join('\n'),

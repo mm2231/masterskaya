@@ -180,8 +180,24 @@ if (!ready) {
   say(logTail(25));
   say('');
   say(`Журнал: ${logFile}`);
-  say('Частая причина: порт занят другой программой.');
-  say(`Проверьте порт ${port} или смените PORT в файле .env.`);
+
+  // Самая частая причина на Windows — нативный модуль SQLite не подходит
+  // к версии Node: тогда в журнале есть «was compiled against a different
+  // Node.js version» или ошибка загрузки .node-файла.
+  const tail = logTail(60);
+  if (
+    tail.includes('NODE_MODULE_VERSION') ||
+    tail.includes('was compiled against a different Node.js version') ||
+    tail.includes('ERR_DLOPEN_FAILED')
+  ) {
+    say('');
+    say('Причина: модуль SQLite не подходит к этой версии Node.');
+    say(`Сейчас Node.js ${process.version}, а приложению нужен Node.js 22 или новее.`);
+    say('Запустите install.cmd (Windows) или ./install.sh (macOS) — он поставит подходящую версию.');
+  } else {
+    say('Частая причина: порт занят другой программой.');
+    say(`Проверьте порт ${port} или смените PORT в файле .env.`);
+  }
   process.exit(1);
 }
 

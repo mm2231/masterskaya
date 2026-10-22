@@ -11,7 +11,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "drizzle"],
+  "files": [
+    "dist",
+    "drizzle"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -23,7 +26,7 @@
   },
   "dependencies": {
     "@masterskaya/shared": "*",
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^12.11.1",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.36.4"
   },

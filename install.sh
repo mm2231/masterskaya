@@ -10,8 +10,7 @@ set -e
 
 cd "$(dirname "$0")"
 
-NODE_MIN_MAJOR=20
-NODE_MIN_MINOR=11
+NODE_MIN_MAJOR=22
 LOCAL_NODE_DIR="$PWD/.node"
 
 say() { printf '%s\n' "$*"; }
@@ -26,13 +25,10 @@ have_node() {
 
 node_is_enough() {
   local v="$1"
-  local major minor
+  local major
   major="$(echo "$v" | sed 's/^v//' | cut -d. -f1)"
-  minor="$(echo "$v" | sed 's/^v//' | cut -d. -f2)"
   [ -n "$major" ] || return 1
-  [ "$major" -gt "$NODE_MIN_MAJOR" ] && return 0
-  [ "$major" -eq "$NODE_MIN_MAJOR" ] && [ "$minor" -ge "$NODE_MIN_MINOR" ] && return 0
-  return 1
+  [ "$major" -ge "$NODE_MIN_MAJOR" ]
 }
 
 if [ -x "$LOCAL_NODE_DIR/bin/node" ]; then

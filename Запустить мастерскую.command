@@ -9,13 +9,24 @@ if ! command -v node >/dev/null 2>&1; then
   if [ -x "$HOME/.local/node/bin/node" ]; then
     export PATH="$HOME/.local/node/bin:$PATH"
   else
-    osascript -e 'display dialog "Не найден Node.js 20 или новее.
+    osascript -e 'display dialog "Не найден Node.js 22 или новее.
 
-Установите его с nodejs.org или запустите в папке проекта:
+Запустите в папке проекта:
   ./install.sh
-После установки откройте этот файл ещё раз." buttons {"Понятно"} default button 1 with icon caution' 2>/dev/null
+Он поставит нужную версию Node сам." buttons {"Понятно"} default button 1 with icon caution' 2>/dev/null
     exit 1
   fi
+fi
+
+# Для Node младше 22 у SQLite-модуля нет готовых бинарников — установка
+# зависимостей падает с ошибкой сборки из исходников.
+NODE_MAJOR="$(node -v | sed 's/^v//' | cut -d. -f1)"
+if [ -z "$NODE_MAJOR" ] || [ "$NODE_MAJOR" -lt 22 ]; then
+  osascript -e "display dialog \"Node.js $(node -v) слишком старый - нужно 22 или новее.
+
+Запустите в папке проекта:
+  ./install.sh\"" buttons {"Понятно"} default button 1 with icon caution 2>/dev/null
+  exit 1
 fi
 
 # Скрипт запуска сам поднимет сервер, дождётся его готовности
