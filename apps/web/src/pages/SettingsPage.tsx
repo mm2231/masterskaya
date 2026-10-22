@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '../components/Toast';
 import { api } from '../lib/api';
-import type { UpdateStatus, Workshop } from '../lib/types';
+import type { Diagnostics, UpdateStatus, Workshop } from '../lib/types';
 
 export function SettingsPage() {
   const toast = useToast();
@@ -48,6 +48,13 @@ export function SettingsPage() {
       toast.show(data.message, 'success');
     },
     onError: (error: Error) => toast.show(error.message, 'error'),
+  });
+
+  /** Отчёт о состоянии приложения — для обращения в поддержку. */
+  const diagnostics = useQuery({
+    queryKey: ['diagnostics'],
+    queryFn: () => api.get<Diagnostics>('/api/settings/diagnostics'),
+    retry: false,
   });
 
   useEffect(() => {
@@ -240,6 +247,78 @@ export function SettingsPage() {
                 После установки приложение перезапустится, а страница откроется
                 заново.
               </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">Диагностика</div>
+          <div className="panel-body">
+            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+              Если что-то не работает — скопируйте этот отчёт и пришлите его.
+              Здесь видно, какая система, где база и что записано в журнале.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              disabled={diagnostics.isPending}
+              onClick={() => void diagnostics.refetch()}
+            >
+              {diagnostics.isPending ? 'Собираю…' : 'Обновить отчёт'}
+            </button>
+            {diagnostics.data ? (
+              <div className="diag-block">
+                <div className="diag-row">
+                  <span>Система</span>
+                  <code>
+                    {diagnostics.data.system.platform}{' '}
+                    {diagnostics.data.system.release} ({diagnostics.data.system.arch}), Node{' '}
+                    {diagnostics.data.system.node}
+                  </code>
+                </div>
+                <div className="diag-row">
+                  <span>Порт</span>
+                  <code>{diagnostics.data.app.port}</code>
+                </div>
+                <div className="diag-row">
+                  <span>Папка</span>
+                  <code>{diagnostics.data.app.repoRoot}</code>
+                </div>
+                <div className="diag-row">
+                  <span>База</span>
+                  <code>
+                    {diagnostics.data.database.exists
+                      ? `${diagnostics.data.database.path} (${diagnostics.data.database.sizeKb} КБ)`
+                      : 'не найдена!'}
+                  </code>
+                </div>
+                <div className="diag-row">
+                  <span>Записей</span>
+                  <code>
+                    {Object.entries(diagnostics.data.database.counts)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(' · ') || '—'}
+                  </code>
+                </div>
+                {diagnostics.data.log.tail.length > 0 ? (
+                  <details className="diag-log">
+                    <summary>Журнал (последние {diagnostics.data.log.tail.length} строк)</summary>
+                    <pre>{diagnostics.data.log.tail.join('\n')}</pre>
+                  </details>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{ marginTop: 10 }}
+                  onClick={() => {
+                    const report = JSON.stringify(diagnostics.data, null, 2);
+                    void navigator.clipboard?.writeText(report);
+                    toast.show('Отчёт скопирован в буфер обмена', 'success');
+                  }}
+                >
+                  Скопировать отчёт
+                </button>
+              </div>
             ) : null}
           </div>
         </section>

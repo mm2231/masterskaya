@@ -669,3 +669,27 @@ describe('проверка обновлений', () => {
     expect(typeof response.json().reason).toBe('string');
   });
 });
+
+describe('диагностика', () => {
+  it('собирает отчёт о системе, базе и журнале', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/settings/diagnostics' });
+    expect(response.statusCode).toBe(200);
+    const report = response.json();
+
+    // Система.
+    expect(typeof report.system.platform).toBe('string');
+    expect(report.system.node).toMatch(/^v\d+/);
+
+    // Приложение.
+    expect(report.app.version).toBe('2.0.0');
+    expect(typeof report.app.authEnabled).toBe('boolean');
+
+    // База: путь и количество записей.
+    expect(typeof report.database.path).toBe('string');
+    expect(typeof report.database.counts.orders).toBe('number');
+
+    // Журнал: путь и наличие.
+    expect(typeof report.log.path).toBe('string');
+    expect(Array.isArray(report.log.tail)).toBe(true);
+  });
+});

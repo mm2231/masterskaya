@@ -9,7 +9,6 @@ rem    install.cmd
 rem
 rem  Скрипт сам поставит Node.js (если его нет), зависимости и подготовит базу.
 rem ═══════════════════════════════════════════════════════════════════
-setlocal
 cd /d "%~dp0"
 
 set "NODE_VER=v22.23.4"
@@ -20,28 +19,20 @@ echo ═══ Установка «Мастерской» ═══
 echo.
 
 rem ── 1. Node.js ───────────────────────────────────────────────────────────
-set "NODE_OK="
-where node >nul 2>&1
-if not errorlevel 1 (
-  for /f "delims=" %%V in ('node -v') do set "NODE_VER_INSTALLED=%%V"
-  echo.| findstr /c:"v20." >nul && set "NODE_OK=1"
-  echo.| findstr /c:"v21." >nul && set "NODE_OK=1"
-  echo.| findstr /c:"v22." >nul && set "NODE_OK=1"
-  echo.| findstr /c:"v23." >nul && set "NODE_OK=1"
-  echo.| findstr /c:"v24." >nul && set "NODE_OK=1"
-  if defined NODE_OK (
-    echo Node.js %NODE_VER_INSTALLED% - подходит.
-    goto :deps
-  )
-  echo Node.js %NODE_VER_INSTALLED% устарел, ставим новый...
-)
-
-echo Node.js не найден - устанавливаем локально в .\.node
+rem Локальная копия в .\.node всегда в приоритете: ею пользуется и запуск.
 if exist "%LOCAL_NODE%\node.exe" (
   set "PATH=%LOCAL_NODE%;%PATH%"
   goto :deps
 )
 
+where node >nul 2>&1
+if not errorlevel 1 (
+  for /f "delims=" %%V in ('node -v') do set "NODE_INSTALLED=%%V"
+  echo Node.js %NODE_INSTALLED% найден.
+  goto :deps
+)
+
+echo Node.js не найден - устанавливаю локально в .\.node
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
   "$url='https://nodejs.org/dist/%NODE_VER%/node-%NODE_VER%-win-x64.zip';" ^
@@ -59,7 +50,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 if errorlevel 1 (
   echo.
   echo Не удалось установить Node.js автоматически.
-  echo Скачайте Node.js 20+ с nodejs.org, перезапустите эту программу и запустите install.cmd снова.
+  echo Скачайте Node.js 20+ с nodejs.org, перезапустите эту программу
+  echo и запустите install.cmd снова.
   echo.
   pause
   exit /b 1

@@ -1,0 +1,11 @@
+# Пакетные файлы Windows должны сохранять CRLF — иначе cmd.exe
+# разбирает их неправильно (особенно блоки if(...) и for /f).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Скрипты для Unix — с LF.
+*.sh text eol=lf
+*.command text eol=lf
+
+# Остальное — как есть.
+* text=auto

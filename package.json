@@ -34,6 +34,8 @@
     "update:check": "node scripts/apply-update.mjs check",
     "update:install": "node scripts/apply-update.mjs install",
     "setup": "node scripts/setup.mjs",
+    "launch": "node scripts/launch.mjs",
+    "stop": "node scripts/stop.mjs",
     "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {

@@ -1,8 +1,11 @@
 /** HTTP-маршруты настроек: /api/settings… */
 
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { platform, release, arch } from 'node:os';
+import { join, resolve } from 'node:path';
 
+import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -11,6 +14,68 @@ import { exportAll, importAll } from './export.js';
 import { getSetting, getWorkshop, setSetting } from './repository.js';
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Диагностика: что за машина, где база, что в журнале.
+   *
+   * Нужна, когда пользователь звонит «не запускается» — скидывает этот отчёт,
+   * и видно причину без копания в файлах.
+   */
+  app.get('/api/settings/diagnostics', async () => {
+    const database = join(repoRoot, 'data', 'workshop.db');
+    const logPath = join(repoRoot, 'data', 'app.log');
+
+    let logTail: string[] = [];
+    if (existsSync(logPath)) {
+      try {
+        const text = readFileSync(logPath, 'utf-8');
+        logTail = text.split('\n').filter(Boolean).slice(-40);
+      } catch {
+        logTail = ['(не удалось прочитать журнал)'];
+      }
+    }
+
+    // Сколько записей в базе — признак, что БД открылась нормально.
+    const counts: Record<string, number | string> = {};
+    try {
+      const database2 = db();
+      for (const table of ['orders', 'clients', 'documents', 'payments']) {
+        const rows = (await database2.all(sql.raw(`select count(*) as n from ${table}`))) as Array<{
+          n: number;
+        }>;
+        counts[table] = Number(rows[0]?.n ?? 0);
+      }
+    } catch (error) {
+      counts.error = 'не удалось посчитать';
+      counts.message = String(error).slice(0, 200);
+    }
+
+    return {
+      system: {
+        platform: platform(),
+        release: release(),
+        arch: arch(),
+        node: process.version,
+      },
+      app: {
+        repoRoot,
+        port: process.env.PORT ?? '—',
+        version: '2.0.0',
+        authEnabled: Boolean(process.env.APP_PASSWORD),
+      },
+      database: {
+        path: database,
+        exists: existsSync(database),
+        sizeKb: existsSync(database) ? Math.round(statSync(database).size / 1024) : 0,
+        counts,
+      },
+      log: {
+        path: logPath,
+        exists: existsSync(logPath),
+        tail: logTail,
+      },
+    };
+  });
+
   app.get('/api/settings/workshop', async () => {
     return { workshop: await getWorkshop(db()) };
   });

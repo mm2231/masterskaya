@@ -217,3 +217,21 @@ export interface UpdateStatus {
   current?: { hash: string; short: string; date: string; subject: string };
   remote?: { hash: string; subject: string; behind: number };
 }
+
+/** Отчёт о состоянии приложения и машины — для диагностики. */
+export interface Diagnostics {
+  system: { platform: string; release: string; arch: string; node: string };
+  app: {
+    repoRoot: string;
+    port: string;
+    version: string;
+    authEnabled: boolean;
+  };
+  database: {
+    path: string;
+    exists: boolean;
+    sizeKb: number;
+    counts: Record<string, number | string>;
+  };
+  log: { path: string; exists: boolean; tail: string[] };
+}

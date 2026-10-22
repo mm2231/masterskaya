@@ -6,7 +6,22 @@ import {
   isOverdue,
   normalizeDueAt,
   overdueDays,
+  todayDate,
 } from './tasks.js';
+
+/**
+ * Дата через N дней от сегодня — «YYYY-MM-DD».
+ *
+ * Функции overdueDays и describeDue считают от текущего дня, поэтому
+ * тесты не должны быть привязаны к конкретной дате: иначе они падают
+ * на следующий день после написания.
+ */
+function dayFromNow(offset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
 
 describe('normalizeDueAt', () => {
   it('приводит дату и время к формату SQLite', () => {
@@ -41,8 +56,8 @@ describe('просрочка', () => {
   });
 
   it('считает дни просрочки', () => {
-    expect(overdueDays('2026-10-19 10:00')).toBe(2);
-    expect(overdueDays('2026-10-21 10:00')).toBe(0);
+    expect(overdueDays(`${dayFromNow(-2)} 10:00`)).toBe(2);
+    expect(overdueDays(`${dayFromNow(0)} 10:00`)).toBe(0);
     expect(overdueDays(null)).toBe(0);
   });
 
@@ -55,12 +70,12 @@ describe('просрочка', () => {
 
 describe('describeDue', () => {
   it('описывает близкие сроки словами', () => {
-    expect(describeDue('2026-10-21 16:00')).toBe('сегодня, 16:00');
-    expect(describeDue('2026-10-22 16:00')).toBe('завтра, 16:00');
+    expect(describeDue(`${todayDate()} 16:00`)).toBe('сегодня, 16:00');
+    expect(describeDue(`${dayFromNow(1)} 16:00`)).toBe('завтра, 16:00');
   });
 
   it('пишет «просрочено», если срок прошёл', () => {
-    expect(describeDue('2026-10-19 16:00')).toContain('просрочено');
+    expect(describeDue(`${dayFromNow(-2)} 16:00`)).toContain('просрочено');
   });
 
   it('для далёких сроков показывает дату', () => {
