@@ -1,9 +1,9 @@
 #!/bin/bash
-# Установка Node.js 20 в ~/.local/node — без sudo и без Homebrew.
+# Установка Node.js 22 в ~/.local/node — без sudo и без Homebrew.
 # Нужна один раз, если Node не установлен в системе.
 set -e
 
-VERSION="v20.20.2"
+VERSION="v22.23.4"
 DIR="$HOME/.local/node"
 
 if [ -x "$DIR/bin/node" ]; then

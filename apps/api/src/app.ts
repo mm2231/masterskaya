@@ -42,7 +42,7 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
 
   app.get('/api/health', async () => ({
     ok: true,
-    version: '2.0.0',
+    version: '1.0.0',
     authEnabled: Boolean(env.APP_PASSWORD),
   }));
 

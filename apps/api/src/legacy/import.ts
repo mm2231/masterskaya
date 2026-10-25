@@ -11,8 +11,6 @@
  *   manual_incomes → payments (приход без заказа)
  *
  * Что НЕ переносится (функционал снят):
- *   parts              — кэш цен парсера shop.topset.by
- *   supplier_orders    — заказы запчастей поставщику
  *   labor_cost, markup_percent — легаси-колонки
  */
 

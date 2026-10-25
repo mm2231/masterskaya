@@ -63,5 +63,3 @@ export function allowedTransitions(from: unknown): readonly string[] {
   if (!isOrderStatus(from)) return ORDER_STATUS_CODES;
   return ALLOWED_TRANSITIONS[from] ?? ORDER_STATUS_CODES;
 }
-
-/** Статусы заказа поставщику удалены вместе с парсингом — здесь их нет. */

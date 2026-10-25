@@ -1030,7 +1030,7 @@ describe('диагностика', () => {
     expect(report.system.node).toMatch(/^v\d+/);
 
     // Приложение.
-    expect(report.app.version).toBe('2.0.0');
+    expect(report.app.version).toBe('1.0.0');
     expect(typeof report.app.authEnabled).toBe('boolean');
 
     // База: путь и количество записей.

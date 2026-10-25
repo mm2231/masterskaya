@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   console.log(
     `  доходы:  ${report.payments.created} создано, ${report.payments.skipped} пропущено (из ${report.payments.total})`,
   );
-  console.log('\nНе переносятся (функционал снят): кэш цен парсера, заказы поставщику.');
+  console.log('\nСлужебные таблицы прежней программы не переносятся.');
 }
 
 main().catch((error) => {
