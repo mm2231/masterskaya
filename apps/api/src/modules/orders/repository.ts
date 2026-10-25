@@ -31,6 +31,8 @@ export interface OrderListItem {
   status: string;
   clientTotal: number;
   costTotal: number;
+  prepayment: number;
+  prepaymentAt: string | null;
   acceptedAt: string;
   promisedAt: string | null;
   readyAt: string | null;
@@ -132,6 +134,8 @@ export async function listOrders(
       status: orders.status,
       clientTotal: orders.clientTotal,
       costTotal: orders.costTotal,
+      prepayment: orders.prepayment,
+      prepaymentAt: orders.prepaymentAt,
       acceptedAt: orders.acceptedAt,
       promisedAt: orders.promisedAt,
       readyAt: orders.readyAt,
@@ -229,6 +233,9 @@ export function createOrder(
     status: string;
     clientTotal: number;
     costTotal: number;
+    /** Предоплата: сразу идёт в доход. */
+    prepayment?: number;
+    prepaymentAt?: string | null;
     promisedAt?: string | null;
     notes?: string | null;
     warrantyMonths?: number;
@@ -249,6 +256,8 @@ export function createOrder(
       status: data.status,
       clientTotal: data.clientTotal,
       costTotal: data.costTotal,
+      prepayment: data.prepayment ?? 0,
+      prepaymentAt: data.prepaymentAt ?? null,
       promisedAt: data.promisedAt || null,
       notes: data.notes ?? null,
       warrantyMonths: data.warrantyMonths ?? 0,

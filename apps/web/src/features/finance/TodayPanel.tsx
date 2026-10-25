@@ -39,7 +39,11 @@ export function TodayPanel() {
           <div className="kpi">
             <div className="kpi-label">Выручка за сегодня</div>
             <div className="kpi-value">{formatMoney(s?.revenue ?? 0)}</div>
-            <div className="kpi-hint">выдано заказов: {s?.issuedCount ?? 0}</div>
+            <div className="kpi-hint">
+              выдано заказов: {s?.issuedCount ?? 0}
+              {s?.prepayments ? ` · предоплаты: ${formatMoney(s.prepayments)}` : ''}
+              {s?.manualIncome ? ` · прочие доходы: ${formatMoney(s.manualIncome)}` : ''}
+            </div>
           </div>
           <div className="kpi">
             <div className="kpi-label">Прибыль за сегодня</div>
@@ -62,7 +66,7 @@ export function TodayPanel() {
           <EmptyState
             icon="📅"
             title="Сегодня ещё ничего не выдано"
-            hint="Заказы, переведённые в статус «Выдан», появятся здесь"
+            hint="Заказы, переведённые в статус «Выдан», появятся здесь. Предоплаты и прочие доходы уже учтены в выручке."
           />
         ) : (
           <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>

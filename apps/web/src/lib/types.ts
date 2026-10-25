@@ -57,6 +57,10 @@ export interface Order {
   status: OrderStatusCode | string;
   clientTotal: number;
   costTotal: number;
+  /** Предоплата: учтена в доходе сразу, не дожидаясь выдачи. */
+  prepayment: number;
+  /** Дата предоплаты — по ней она попадает в период. */
+  prepaymentAt: string | null;
   acceptedAt: string;
   promisedAt: string | null;
   readyAt: string | null;
@@ -115,6 +119,8 @@ export interface Payment {
   orderId: number | null;
   direction: 'in' | 'out';
   amount: number;
+  /** Расходники ручного дохода: прибыль = amount − cost. */
+  cost: number;
   method: string;
   category: string | null;
   occurredOn: string;
@@ -134,6 +140,8 @@ export interface PeriodSummary {
   margin: number;
   averageCheck: number;
   manualIncome: number;
+  manualCost: number;
+  prepayments: number;
   expenses: number;
 }
 
@@ -203,6 +211,7 @@ export interface TodayData {
     orderId: number | null;
     direction: 'in' | 'out';
     amount: number;
+    cost?: number;
     method: string;
     category: string | null;
     note: string | null;

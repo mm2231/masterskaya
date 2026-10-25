@@ -17,7 +17,12 @@ export interface PeriodSummary {
   profit: number;
   margin: number;
   averageCheck: number;
+  /** Прочие доходы без заказа (мелкие работы, продажа восстановленной техники). */
   manualIncome: number;
+  /** Расходники по ручным доходам — их себестоимость. */
+  manualCost: number;
+  /** Предоплаты по заказам, ещё не выданным: деньги уже получены. */
+  prepayments: number;
   expenses: number;
 }
 
@@ -30,6 +35,8 @@ export const emptySummary = (): PeriodSummary => ({
   margin: 0,
   averageCheck: 0,
   manualIncome: 0,
+  manualCost: 0,
+  prepayments: 0,
   expenses: 0,
 });
 
@@ -54,12 +61,19 @@ export function orderMargin(order: OrderAmounts): number {
  * Деньги считаются по заказам, ВЫДАННЫМ в периоде (дата выдачи) — как в
  * старой версии: выручка появляется, когда клиент расплатился.
  * Прочие доходы (мелкие работы без заказа) добавляются к выручке.
+ *
+ * Предоплаты по ещё не выданным заказам тоже входят в выручку сразу:
+ * клиент уже отдал деньги. Когда заказ выдали, он попадает в выручку
+ * целиком (clientTotal), а предоплата перестаёт учитываться отдельно —
+ * двойного счёта нет.
  */
 export function summarize(
   issuedOrders: readonly OrderAmounts[],
   options: {
     ordersCount?: number;
     manualIncome?: number;
+    manualCost?: number;
+    prepayments?: number;
     expenses?: number;
   } = {},
 ): PeriodSummary {
@@ -73,11 +87,14 @@ export function summarize(
   }
 
   summary.manualIncome = toNumber(options.manualIncome);
+  summary.manualCost = toNumber(options.manualCost);
+  summary.prepayments = toNumber(options.prepayments);
   summary.expenses = toNumber(options.expenses);
 
-  // Прочие доходы — часть выручки периода.
-  summary.revenue += summary.manualIncome;
-  summary.profit = summary.revenue - summary.cost - summary.expenses;
+  // Прочие доходы и предоплаты — часть выручки периода.
+  summary.revenue += summary.manualIncome + summary.prepayments;
+  summary.profit =
+    summary.revenue - summary.cost - summary.manualCost - summary.expenses;
   summary.margin = summary.revenue ? (summary.profit / summary.revenue) * 100 : 0;
   summary.averageCheck = summary.issuedCount
     ? issuedOrders.reduce((sum, order) => sum + toNumber(order.clientTotal), 0) / summary.issuedCount

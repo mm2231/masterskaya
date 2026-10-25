@@ -15,9 +15,13 @@ import {
   issuedOnDay,
   listExpenseCategories,
   listPayments,
+  manualCostInPeriod,
   manualIncomeInPeriod,
   orderPaid,
   paymentsOnDay,
+  prepaymentsInPeriod,
+  prepaymentsListInPeriod,
+  prepaymentsOnDay,
   updatePayment,
 } from './repository.js';
 
@@ -43,6 +47,8 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
 
     const issued = await issuedInPeriod(db(), from, to);
     const manualIncome = await manualIncomeInPeriod(db(), from, to);
+    const manualCost = await manualCostInPeriod(db(), from, to);
+    const prepayments = await prepaymentsInPeriod(db(), from, to);
     const expenses = await expensesInPeriod(db(), from, to);
     const byCategory = await expensesByCategory(db(), from, to);
 
@@ -51,7 +57,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         clientTotal: order.clientTotal,
         costTotal: order.costTotal,
       })),
-      { manualIncome, expenses },
+      { manualIncome, manualCost, prepayments, expenses },
     );
 
     return { from, to, summary, expensesByCategory: byCategory };
@@ -67,10 +73,16 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     const day = todayIso();
     const issued = await issuedOnDay(db(), day);
     const movements = await paymentsOnDay(db(), day);
+    const prepayments = await prepaymentsOnDay(db(), day);
 
+    // Ручные доходы — только движения без заказа: выручка выданных заказов
+    // уже учтена в issued и не должна считаться второй раз.
     const manualIncome = movements
-      .filter((item) => item.direction === 'in')
+      .filter((item) => item.direction === 'in' && item.orderId === null)
       .reduce((sum, item) => sum + Number(item.amount), 0);
+    const manualCost = movements
+      .filter((item) => item.direction === 'in' && item.orderId === null)
+      .reduce((sum, item) => sum + Number(item.cost ?? 0), 0);
     const expenses = movements
       .filter((item) => item.direction === 'out')
       .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -80,7 +92,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         clientTotal: order.clientTotal,
         costTotal: order.costTotal,
       })),
-      { manualIncome, expenses },
+      { manualIncome, manualCost, prepayments, expenses },
     );
 
     return {
@@ -120,6 +132,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         orderId: data.orderId ?? null,
         direction: data.direction,
         amount: data.amount,
+        cost: data.direction === 'in' ? (data.cost ?? 0) : 0,
         method: data.method,
         category: data.category || null,
         occurredOn: data.occurredOn,
@@ -156,12 +169,14 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
 
       const changes: {
         amount?: number;
+        cost?: number;
         method?: string;
         category?: string | null;
         occurredOn?: string;
         note?: string | null;
       } = {};
       if (data.amount !== undefined) changes.amount = data.amount;
+      if (data.cost !== undefined) changes.cost = data.cost;
       if (data.method !== undefined) changes.method = data.method;
       // Пустая категория или комментарий — это отсутствие значения, а не пустая строка.
       if (data.category !== undefined) changes.category = data.category || null;
@@ -224,6 +239,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     const { from, to } = periodBounds(query);
 
     const issued = await issuedInPeriod(db(), from, to);
+    const prepayments = await prepaymentsListInPeriod(db(), from, to);
     const items = await listPayments(db(), { from, to, limit: 5000, offset: 0 });
 
     const rows: string[][] = [];
@@ -231,16 +247,22 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
       'Дата',
       'Тип',
       'Сумма',
+      'Расходники',
+      'Прибыль',
       'Категория/Метод',
       'Заказ',
       'Клиент',
       'Комментарий',
     ]);
+    const money = (value: number) => value.toFixed(2).replace('.', ',');
     for (const order of issued) {
+      const profit = Number(order.clientTotal) - Number(order.costTotal);
       rows.push([
         (order.issuedAt ?? '').slice(0, 10),
         'Доход (выданный заказ)',
-        order.clientTotal.toFixed(2).replace('.', ','),
+        money(Number(order.clientTotal)),
+        money(Number(order.costTotal)),
+        money(profit),
         '',
         order.number,
         order.clientName ?? '',
@@ -248,11 +270,28 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         order.workDescription || order.deviceLabel || '',
       ]);
     }
+    for (const item of prepayments) {
+      rows.push([
+        (item.prepaymentAt ?? '').slice(0, 10),
+        'Предоплата (заказ не выдан)',
+        money(Number(item.prepayment)),
+        '',
+        money(Number(item.prepayment)),
+        '',
+        item.number,
+        item.clientName ?? '',
+        item.deviceLabel ?? '',
+      ]);
+    }
     for (const item of items) {
+      const cost = Number(item.cost ?? 0);
+      const profit = item.direction === 'in' ? Number(item.amount) - cost : -Number(item.amount);
       rows.push([
         item.occurredOn,
         item.direction === 'in' ? 'Доход' : 'Расход',
-        item.amount.toFixed(2).replace('.', ','),
+        money(Number(item.amount)),
+        item.direction === 'in' && cost ? money(cost) : '',
+        money(profit),
         item.category || item.method,
         item.orderNumber ?? '',
         item.clientName ?? '',

@@ -73,6 +73,16 @@ export const orders = sqliteTable(
     clientTotal: real('client_total').notNull().default(0),
     /** Себестоимость: вводится мастером одной суммой. */
     costTotal: real('cost_total').notNull().default(0),
+    /**
+     * Предоплата, внесённая клиентом при приёме заказа.
+     *
+     * Учитывается в доходе сразу, не дожидаясь статуса «Выдан»:
+     * клиент уже отдал деньги. При выдаче она входит в clientTotal
+     * и отдельно не суммируется — двойного счёта нет.
+     */
+    prepayment: real('prepayment').notNull().default(0),
+    /** Когда внесена предоплата — по этой дате она попадает в доход периода. */
+    prepaymentAt: text('prepayment_at'),
     acceptedAt: text('accepted_at').notNull().default(sql`(datetime('now'))`),
     promisedAt: text('promised_at'),
     readyAt: text('ready_at'),
@@ -186,6 +196,13 @@ export const payments = sqliteTable(
     /** in — приход, out — расход. */
     direction: text('direction').notNull(),
     amount: real('amount').notNull(),
+    /**
+     * Расходники (себестоимость) для ручного дохода без заказа.
+     *
+     * Пример: продал восстановленный телефон за 130, потратил на
+     * детали 50 — доход 130, расходники 50, прибыль 80.
+     */
+    cost: real('cost').notNull().default(0),
     /** cash, card, invoice, other. */
     method: text('method').notNull().default('cash'),
     /** Категория расхода: аренда, инструмент, запчасти, реклама… */

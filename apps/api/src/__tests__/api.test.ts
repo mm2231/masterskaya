@@ -500,6 +500,156 @@ describe('финансы', () => {
   });
 });
 
+describe('предоплата', () => {
+  it('сразу входит в доход, хотя заказ ещё не выдан', async () => {
+    const before = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const beforeSummary = before.json().summary;
+
+    const { order } = await createOrder({
+      clientTotal: 100,
+      costTotal: 40,
+      prepayment: 30,
+      status: 'new',
+    });
+    expect(order.prepayment).toBe(30);
+    expect(order.prepaymentAt).toBeTruthy();
+
+    const after = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const afterSummary = after.json().summary;
+    expect(afterSummary.revenue).toBe(beforeSummary.revenue + 30);
+    expect(afterSummary.prepayments).toBe(beforeSummary.prepayments + 30);
+    expect(afterSummary.profit).toBe(beforeSummary.profit + 30);
+  });
+
+  it('при выдаче не считается дважды', async () => {
+    const { order } = await createOrder({
+      clientTotal: 100,
+      costTotal: 40,
+      prepayment: 30,
+      status: 'new',
+    });
+    const before = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const beforeSummary = before.json().summary;
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'ready' },
+    });
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'issued' },
+    });
+
+    const after = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const afterSummary = after.json().summary;
+    // Выданный заказ добавляет только остаток: 100 − уже учтённые 30.
+    expect(afterSummary.revenue).toBe(beforeSummary.revenue + 70);
+    expect(afterSummary.prepayments).toBe(beforeSummary.prepayments - 30);
+  });
+
+  it('правка предоплаты пишется в журнал и снимается в ноль', async () => {
+    const { order } = await createOrder({ clientTotal: 90, costTotal: 30, status: 'new' });
+
+    const changed = await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { prepayment: 25 },
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(changed.json().order.prepayment).toBe(25);
+    expect(changed.json().order.prepaymentAt).toBeTruthy();
+
+    const card = await app.inject({ method: 'GET', url: `/api/orders/${order.id}` });
+    expect(
+      card.json().history.some((event: { type: string }) => event.type === 'prepayment_changed'),
+    ).toBe(true);
+
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { prepayment: 0 },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json().order.prepayment).toBe(0);
+    expect(cleared.json().order.prepaymentAt).toBeNull();
+  });
+
+  it('попадает в акт: предоплата и сумма к доплате', async () => {
+    const { order } = await createOrder({
+      clientTotal: 100,
+      costTotal: 40,
+      prepayment: 20,
+      status: 'new',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/documents/${order.id}/preview/works`,
+    });
+    expect(response.statusCode).toBe(200);
+    const totals = response.json().totals;
+    expect(totals.prepayment).toBe(20);
+    expect(totals.toPay).toBe(80);
+    // Прописью — остаток к доплате, а не вся сумма.
+    expect(totals.words.toLowerCase()).toContain('восемьдесят');
+  });
+});
+
+describe('ручной доход с расходниками', () => {
+  it('прибыль = сумма − расходники', async () => {
+    const before = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const beforeSummary = before.json().summary;
+    const day = new Date().toISOString().slice(0, 10);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/finance/payments',
+      payload: {
+        direction: 'in',
+        amount: 130,
+        cost: 50,
+        method: 'cash',
+        occurredOn: day,
+        note: 'Продажа восстановленного телефона',
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().payment.cost).toBe(50);
+
+    const after = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const afterSummary = after.json().summary;
+    expect(afterSummary.manualIncome).toBe(beforeSummary.manualIncome + 130);
+    expect(afterSummary.manualCost).toBe(beforeSummary.manualCost + 50);
+    expect(afterSummary.revenue).toBe(beforeSummary.revenue + 130);
+    expect(afterSummary.profit).toBe(beforeSummary.profit + 80);
+  });
+
+  it('расходники можно поправить в существующей записи', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/finance/payments',
+      payload: {
+        direction: 'in',
+        amount: 200,
+        cost: 50,
+        method: 'cash',
+        occurredOn: '2026-10-01',
+      },
+    });
+    const id = created.json().payment.id;
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/api/finance/payments/${id}`,
+      payload: { cost: 70 },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().payment.cost).toBe(70);
+  });
+});
+
 describe('задачи', () => {
   it('создаёт задачу с привязкой к заказу', async () => {
     const { order } = await createOrder({ clientTotal: 30, costTotal: 10, status: 'new' });

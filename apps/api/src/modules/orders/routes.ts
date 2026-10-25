@@ -109,7 +109,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         const client = findOrCreateClient(db(), { name: data.clientName, phone });
         clientId = client?.id ?? null;
       }
-      const created = createOrder(db(), { ...data, number, clientId });
+      const created = createOrder(db(), {
+        ...data,
+        number,
+        clientId,
+        // Дата предоплаты — момент оформления: по ней деньги попадают
+        // в доход нужного периода, даже если заказ ещё не выдан.
+        prepaymentAt: data.prepayment > 0 ? nowSql() : null,
+      });
       logEvent(db(), created.id, 'created', `Заказ ${number} создан`, {
         status: created.status,
       });
@@ -170,6 +177,20 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Предоплата: при первом появлении датируем её сегодняшним днём —
+    // по этой дате она попадает в доход периода, не дожидаясь выдачи.
+    // Если дата уже была, не переносим её: повторное сохранение формы
+    // не должно перекидывать предоплату в другой месяц.
+    const prepaymentChanged =
+      data.prepayment !== undefined && data.prepayment !== current.order.prepayment;
+    if (prepaymentChanged) {
+      if (Number(data.prepayment) > 0) {
+        data.prepaymentAt = current.order.prepaymentAt ?? nowSql();
+      } else {
+        data.prepaymentAt = null;
+      }
+    }
+
     // Обновление заказа, журнал событий и правка клиента в справочнике —
     // одна транзакция: либо всё, либо ничего.
     const order = inTransaction(db(), () => {
@@ -198,6 +219,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           from: current.order.costTotal,
           to: data.costTotal,
         });
+      }
+      if (prepaymentChanged) {
+        logEvent(
+          db(),
+          id,
+          'prepayment_changed',
+          Number(data.prepayment) > 0 ? `Предоплата: ${data.prepayment}` : 'Предоплата убрана',
+          { from: current.order.prepayment, to: data.prepayment },
+        );
       }
       if (data.clientName !== undefined && data.clientName !== current.order.clientName) {
         logEvent(

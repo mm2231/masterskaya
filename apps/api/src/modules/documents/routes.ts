@@ -58,6 +58,10 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       }
       const workshop = (await getSetting<Record<string, string>>(db(), 'workshop')) ?? {};
       const docs = await orderDocuments(db(), id);
+      // Предоплата уменьшает сумму к доплате. Прописью пишем именно
+      // остаток: клиент уже внёс часть денег, и в акте это видно.
+      const prepayment = Number(loaded.order.prepayment ?? 0);
+      const toPay = Math.max(Number(loaded.order.clientTotal) - prepayment, 0);
       return {
         kind,
         order: loaded.order,
@@ -66,10 +70,12 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         documents: docs,
         totals: {
           clientTotal: loaded.order.clientTotal,
+          prepayment,
+          toPay,
           costTotal: loaded.order.costTotal,
           profit: orderProfit(loaded.order),
           margin: orderMargin(loaded.order),
-          words: numberToWords(loaded.order.clientTotal),
+          words: numberToWords(toPay),
         },
       };
     },
@@ -102,6 +108,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         note: data.note || null,
         snapshot: {
           clientTotal: loaded.order.clientTotal,
+          prepayment: Number(loaded.order.prepayment ?? 0),
+          toPay: Math.max(
+            Number(loaded.order.clientTotal) - Number(loaded.order.prepayment ?? 0),
+            0,
+          ),
           workDescription: loaded.order.workDescription,
           deviceLabel: loaded.order.deviceLabel,
         },

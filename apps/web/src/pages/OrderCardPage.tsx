@@ -80,6 +80,11 @@ export function OrderCardPage() {
   const paid = orderPayments
     .filter((item) => item.direction === 'in')
     .reduce((sum, item) => sum + item.amount, 0);
+  const prepayment = Number(order.prepayment ?? 0);
+  // Предоплата — тоже полученные деньги, хотя отдельной строкой в платежах
+  // не лежит: она уже в доходе и уменьшает сумму к доплате.
+  const paidTotal = prepayment + paid;
+  const toPay = Math.max(order.clientTotal - paidTotal, 0);
 
 
   return (
@@ -120,10 +125,11 @@ export function OrderCardPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Оплачено</div>
-          <div className="kpi-value">{formatMoney(paid)}</div>
-          {paid < order.clientTotal ? (
-            <div className="kpi-hint">долг {formatMoney(order.clientTotal - paid)}</div>
+          <div className="kpi-value">{formatMoney(paidTotal)}</div>
+          {prepayment > 0 ? (
+            <div className="kpi-hint">в т.ч. предоплата {formatMoney(prepayment)}</div>
           ) : null}
+          {toPay > 0 ? <div className="kpi-hint">долг {formatMoney(toPay)}</div> : null}
         </div>
       </div>
 
@@ -222,7 +228,7 @@ export function OrderCardPage() {
         <section className="panel">
           <div className="panel-head">Движение денег по заказу</div>
           <div className="panel-body">
-            {orderPayments.length === 0 ? (
+            {orderPayments.length === 0 && prepayment === 0 ? (
               <EmptyState icon="💰" title="Платежей не было" />
             ) : (
               <table className="data">
@@ -235,6 +241,14 @@ export function OrderCardPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {prepayment > 0 ? (
+                    <tr>
+                      <td>{order.prepaymentAt ? formatDateTime(order.prepaymentAt) : '—'}</td>
+                      <td>Предоплата</td>
+                      <td>внесена при приёме</td>
+                      <td className="num">+{formatMoney(prepayment)}</td>
+                    </tr>
+                  ) : null}
                   {orderPayments.map((payment) => (
                     <tr key={payment.id}>
                       <td>{payment.occurredOn}</td>

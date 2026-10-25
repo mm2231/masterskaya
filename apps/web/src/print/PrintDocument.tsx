@@ -28,6 +28,8 @@ interface PreviewData {
     workDescription: string | null;
     clientTotal: number;
     costTotal: number;
+    prepayment: number;
+    prepaymentAt: string | null;
     acceptedAt: string;
     warrantyMonths: number;
   };
@@ -39,7 +41,14 @@ interface PreviewData {
     address: string;
     phone: string;
   };
-  totals: { words: string; profit: number; margin: number };
+  totals: {
+    clientTotal: number;
+    prepayment: number;
+    toPay: number;
+    words: string;
+    profit: number;
+    margin: number;
+  };
 }
 
 export function PrintDocument() {

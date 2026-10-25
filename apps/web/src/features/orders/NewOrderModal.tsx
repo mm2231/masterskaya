@@ -18,6 +18,7 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
   const [work, setWork] = useState('');
   const [clientTotal, setClientTotal] = useState('');
   const [costTotal, setCostTotal] = useState('');
+  const [prepayment, setPrepayment] = useState('');
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -54,6 +55,15 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
       return;
     }
     const cost = Number(costTotal.replace(',', '.'));
+    const prepaid = prepayment.trim() ? Number(prepayment.replace(',', '.')) : 0;
+    if (!Number.isFinite(prepaid) || prepaid < 0) {
+      toast.show('Предоплата указана неверно', 'error');
+      return;
+    }
+    if (prepaid > total) {
+      toast.show('Предоплата не может быть больше суммы за ремонт', 'error');
+      return;
+    }
     create.mutate({
       clientName: name.trim() || undefined,
       clientPhone: phone.trim() || undefined,
@@ -63,6 +73,7 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
       workDescription: work.trim() || undefined,
       clientTotal: total,
       costTotal: Number.isFinite(cost) && cost > 0 ? cost : 0,
+      prepayment: prepaid,
       status: 'new',
     });
   };
@@ -183,6 +194,33 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
                 placeholder="20"
               />
             </label>
+          </div>
+
+          <div className="form-grid">
+            <label className="field">
+              <span className="field-label">Предоплата</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={prepayment}
+                onChange={(event) => setPrepayment(event.target.value)}
+                placeholder="0"
+              />
+              <span className="field-hint">Сразу попадёт в доход, даже без выдачи</span>
+            </label>
+            <div className="field">
+              <span className="field-label">К доплате при выдаче</span>
+              <div style={{ paddingTop: 8, fontWeight: 600 }}>
+                {formatMoney(
+                  Math.max(
+                    Number(clientTotal.replace(',', '.') || 0) -
+                      Number(prepayment.replace(',', '.') || 0),
+                    0,
+                  ),
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="modal-foot">

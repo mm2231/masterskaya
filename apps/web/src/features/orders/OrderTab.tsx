@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { statusLabel } from '@masterskaya/shared';
 
 import { StatusBadge } from '../../components/StatusBadge';
+import { formatMoney } from '../../lib/format';
 
 import type { Order } from '../../lib/types';
 
@@ -25,6 +26,7 @@ export function OrderTab({
   const [alsoClient, setAlsoClient] = useState(false);
   const [clientTotal, setClientTotal] = useState(String(order.clientTotal ?? ''));
   const [costTotal, setCostTotal] = useState(String(order.costTotal ?? ''));
+  const [prepayment, setPrepayment] = useState(String(order.prepayment ?? 0));
 
   return (
     <div className="split">
@@ -108,6 +110,32 @@ export function OrderTab({
             </label>
           </div>
 
+          <div className="form-grid">
+            <label className="field">
+              <span className="field-label">Предоплата</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={prepayment}
+                onChange={(event) => setPrepayment(event.target.value)}
+              />
+              <span className="field-hint">Сразу попадёт в доход, даже без выдачи</span>
+            </label>
+            <div className="field">
+              <span className="field-label">К доплате при выдаче</span>
+              <div style={{ paddingTop: 8, fontWeight: 600 }}>
+                {formatMoney(
+                  Math.max(
+                    Number(clientTotal.replace(',', '.') || 0) -
+                      Number(prepayment.replace(',', '.') || 0),
+                    0,
+                  ),
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="form-actions">
             <button
               type="button"
@@ -123,6 +151,7 @@ export function OrderTab({
                   workDescription: work,
                   clientTotal: Number(clientTotal.replace(',', '.')) || 0,
                   costTotal: Number(costTotal.replace(',', '.')) || 0,
+                  prepayment: Number(prepayment.replace(',', '.')) || 0,
                 })
               }
             >

@@ -16,6 +16,7 @@ interface Category {
 export function PaymentForm() {
   const [direction, setDirection] = useState<'in' | 'out'>('out');
   const [amount, setAmount] = useState('');
+  const [cost, setCost] = useState('');
   const [category, setCategory] = useState('');
   const [occurredOn, setOccurredOn] = useState(() => todayIso());
   const [note, setNote] = useState('');
@@ -46,9 +47,11 @@ export function PaymentForm() {
     onSuccess: () => {
       toast.show('Запись добавлена', 'success');
       setAmount('');
+      setCost('');
       setNote('');
       void queryClient.invalidateQueries({ queryKey: ['finance-payments'] });
       void queryClient.invalidateQueries({ queryKey: ['finance-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['finance-today'] });
     },
     onError: (error: Error) => toast.show(error.message, 'error'),
   });
@@ -60,9 +63,16 @@ export function PaymentForm() {
       toast.show('Укажите сумму больше нуля', 'error');
       return;
     }
+    const costValue = Number(cost.replace(',', '.'));
+    const cleanCost = direction === 'in' && Number.isFinite(costValue) && costValue > 0 ? costValue : 0;
+    if (cleanCost > value) {
+      toast.show('Расходники не могут быть больше суммы дохода', 'error');
+      return;
+    }
     create.mutate({
       direction,
       amount: value,
+      cost: cleanCost,
       method: 'cash',
       category: direction === 'out' ? category : category || undefined,
       occurredOn,
@@ -97,6 +107,22 @@ export function PaymentForm() {
                 placeholder="50"
               />
             </label>
+            {direction === 'in' ? (
+              <label className="field">
+                <span className="field-label">Расходники</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={cost}
+                  onChange={(event) => setCost(event.target.value)}
+                  placeholder="0"
+                />
+                <span className="field-hint">
+                  Продали за 130, детали 50 → доход сделки 80
+                </span>
+              </label>
+            ) : null}
             <label className="field">
               <span className="field-label">Категория</span>
               <input

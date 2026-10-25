@@ -19,6 +19,8 @@ export interface ActOrder {
   accessories: string | null;
   workDescription: string | null;
   clientTotal: number;
+  /** Предоплата, внесённая при приёме: уменьшает сумму к доплате. */
+  prepayment?: number;
   acceptedAt: string;
   warrantyMonths: number;
 }
@@ -46,6 +48,9 @@ export function ActBody({
   copyLabel?: string;
 }) {
   const isWorks = kind === 'works';
+  // Предоплата уже получена — в акте видно, сколько осталось доплатить.
+  const prepayment = Math.max(Number(order.prepayment ?? 0), 0);
+  const toPay = Math.max(order.clientTotal - prepayment, 0);
 
   return (
     <>
@@ -114,6 +119,18 @@ export function ActBody({
             <span>Стоимость работ и запасных частей:</span>
             <span>{formatRubInt(order.clientTotal)}</span>
           </div>
+          {prepayment > 0 ? (
+            <>
+              <div className="print-sum">
+                <span>Внесена предоплата:</span>
+                <span>−{formatRubInt(prepayment)}</span>
+              </div>
+              <div className="print-sum">
+                <span>К доплате при выдаче:</span>
+                <span>{formatRubInt(toPay)}</span>
+              </div>
+            </>
+          ) : null}
           <div className="print-words">{words}</div>
 
           {order.warrantyMonths > 0 ? (
@@ -136,6 +153,18 @@ export function ActBody({
               <span className="print-label">Срок выполнения:</span>
               <span className="print-value">уточняется после диагностики</span>
             </div>
+            {prepayment > 0 ? (
+              <>
+                <div className="print-row">
+                  <span className="print-label">Предоплата:</span>
+                  <span className="print-value">{formatRubInt(prepayment)}</span>
+                </div>
+                <div className="print-row">
+                  <span className="print-label">К доплате при выдаче:</span>
+                  <span className="print-value">{formatRubInt(toPay)}</span>
+                </div>
+              </>
+            ) : null}
           </div>
         </>
       )}

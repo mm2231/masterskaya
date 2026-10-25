@@ -63,6 +63,8 @@ export const orderInputSchema = z.object({
   status: z.enum(ORDER_STATUS_CODES as unknown as [string, ...string[]]).default('new'),
   clientTotal: z.number().min(0).default(0),
   costTotal: z.number().min(0).default(0),
+  /** Предоплата: сразу идёт в доход, не дожидаясь выдачи. */
+  prepayment: z.number().min(0).default(0),
   promisedAt: z.string().trim().max(40).optional().or(z.literal('')),
   notes: z.string().trim().max(4000).optional().or(z.literal('')),
   warrantyMonths: z.number().int().min(0).max(60).default(0),
@@ -79,6 +81,8 @@ export const paymentInputSchema = z.object({
   orderId: z.number().int().positive().optional(),
   direction: z.enum(['in', 'out']),
   amount: z.number().positive('Сумма должна быть больше нуля'),
+  /** Расходники для ручного дохода: прибыль = сумма − расходники. */
+  cost: z.number().min(0).default(0),
   method: z.enum(['cash', 'card', 'invoice', 'other']).default('cash'),
   category: z.string().trim().max(100).optional().or(z.literal('')),
   occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД'),
@@ -87,9 +91,10 @@ export const paymentInputSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentInputSchema>;
 
-/** Правка записи о движении денег: сумма, категория, дата, комментарий. */
+/** Правка записи о движении денег: сумма, расходники, категория, дата, комментарий. */
 export const paymentPatchSchema = z.object({
   amount: z.number().positive('Сумма должна быть больше нуля').optional(),
+  cost: z.number().min(0).optional(),
   method: z.enum(['cash', 'card', 'invoice', 'other']).optional(),
   category: z.string().trim().max(100).optional().or(z.literal('')),
   occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД').optional(),

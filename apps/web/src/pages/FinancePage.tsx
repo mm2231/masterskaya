@@ -110,11 +110,19 @@ export function FinancePage() {
         <div className="kpi">
           <div className="kpi-label">Выручка</div>
           <div className="kpi-value">{formatMoney(s?.revenue ?? 0)}</div>
-          <div className="kpi-hint">заказы + прочие доходы</div>
+          <div className="kpi-hint">заказы + предоплаты + прочие доходы</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-label">Предоплаты</div>
+          <div className="kpi-value">{formatMoney(s?.prepayments ?? 0)}</div>
+          <div className="kpi-hint">по не выданным заказам</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Себестоимость</div>
-          <div className="kpi-value">{formatMoney(s?.cost ?? 0)}</div>
+          <div className="kpi-value">{formatMoney((s?.cost ?? 0) + (s?.manualCost ?? 0))}</div>
+          {s?.manualCost ? (
+            <div className="kpi-hint">в т.ч. расходники {formatMoney(s.manualCost)}</div>
+          ) : null}
         </div>
         <div className="kpi">
           <div className="kpi-label">Расходы</div>
@@ -169,12 +177,20 @@ export function FinancePage() {
                   <th>Комментарий</th>
                   <th>Заказ</th>
                   <th>Клиент</th>
+                  <th className="num">Расходники</th>
+                  <th className="num">Прибыль</th>
                   <th className="num">Сумма</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {payments.data?.items.map((payment) => (
+                {payments.data?.items.map((payment) => {
+                  const cost = payment.direction === 'in' ? Number(payment.cost ?? 0) : 0;
+                  const profit =
+                    payment.direction === 'in'
+                      ? Number(payment.amount) - cost
+                      : -Number(payment.amount);
+                  return (
                   <tr key={payment.id}>
                     <td className="nowrap">{payment.occurredOn}</td>
                     <td className="nowrap">
@@ -198,6 +214,13 @@ export function FinancePage() {
                       )}
                     </td>
                     <td>{payment.clientName ?? '—'}</td>
+                    <td className="num">{cost ? formatMoney(cost) : '—'}</td>
+                    <td
+                      className="num"
+                      style={{ color: profit >= 0 ? 'var(--success)' : 'var(--danger)' }}
+                    >
+                      {formatMoney(profit)}
+                    </td>
                     <td
                       className="num"
                       style={{
@@ -229,7 +252,8 @@ export function FinancePage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

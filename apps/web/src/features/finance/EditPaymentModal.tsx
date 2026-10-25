@@ -26,6 +26,7 @@ export function EditPaymentModal({
   onClose: () => void;
 }) {
   const [amount, setAmount] = useState(String(payment.amount));
+  const [cost, setCost] = useState(String(payment.cost ?? 0));
   const [category, setCategory] = useState(payment.category ?? '');
   const [occurredOn, setOccurredOn] = useState(payment.occurredOn);
   const [note, setNote] = useState(payment.note ?? '');
@@ -58,7 +59,14 @@ export function EditPaymentModal({
       toast.show('Укажите сумму больше нуля', 'error');
       return;
     }
-    save.mutate({ amount: value, category, occurredOn, note });
+    save.mutate({
+      amount: value,
+      category,
+      occurredOn,
+      note,
+      // Расходники есть только у ручного дохода: у расхода это поле не нужно.
+      ...(payment.direction === 'in' ? { cost: Number(cost.replace(',', '.')) || 0 } : {}),
+    });
   };
 
   return (
@@ -87,6 +95,19 @@ export function EditPaymentModal({
                 onChange={(event) => setOccurredOn(event.target.value)}
               />
             </label>
+            {payment.direction === 'in' ? (
+              <label className="field">
+                <span className="field-label">Расходники</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={cost}
+                  onChange={(event) => setCost(event.target.value)}
+                />
+                <span className="field-hint">Себестоимость проданного — уменьшает прибыль</span>
+              </label>
+            ) : null}
           </div>
 
           <label className="field">

@@ -43,6 +43,39 @@ describe('сводка за период', () => {
     expect(summary.profit).toBe(0);
     expect(summary.margin).toBe(0);
   });
+
+  it('предоплата входит в выручку, даже если заказ не выдан', () => {
+    // Выданных заказов нет — только предоплата по заказу в работе.
+    const summary = summarize([], { prepayments: 50 });
+
+    expect(summary.revenue).toBe(50);
+    expect(summary.prepayments).toBe(50);
+    expect(summary.profit).toBe(50);
+  });
+
+  it('расходники уменьшают прибыль ручного дохода', () => {
+    // Продал восстановленный телефон за 130, детали обошлись в 50.
+    const summary = summarize([], { manualIncome: 130, manualCost: 50 });
+
+    expect(summary.revenue).toBe(130);
+    expect(summary.manualIncome).toBe(130);
+    expect(summary.manualCost).toBe(50);
+    expect(summary.profit).toBe(80);
+  });
+
+  it('выданный заказ и предоплата не считаются дважды', () => {
+    // Выданный заказ уже включает предоплату в clientTotal — в options
+    // его предоплата не передаётся (её отсекает запрос по статусу).
+    const summary = summarize([{ clientTotal: 100, costTotal: 40 }], {
+      manualIncome: 130,
+      manualCost: 50,
+      prepayments: 20,
+      expenses: 10,
+    });
+
+    expect(summary.revenue).toBe(250);
+    expect(summary.profit).toBe(150);
+  });
 });
 
 describe('долг по заказу', () => {

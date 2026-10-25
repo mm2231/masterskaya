@@ -24,6 +24,7 @@ export async function listPayments(
       orderId: payments.orderId,
       direction: payments.direction,
       amount: payments.amount,
+      cost: payments.cost,
       method: payments.method,
       category: payments.category,
       occurredOn: payments.occurredOn,
@@ -49,6 +50,7 @@ export function createPayment(
     orderId?: number | null;
     direction: 'in' | 'out';
     amount: number;
+    cost?: number;
     method: string;
     category?: string | null;
     occurredOn: string;
@@ -57,7 +59,7 @@ export function createPayment(
 ) {
   const [row] = database
     .insert(payments)
-    .values({ ...data, createdAt: nowSql() })
+    .values({ ...data, cost: data.cost ?? 0, createdAt: nowSql() })
     .returning()
     .all();
   return row!;
@@ -69,6 +71,7 @@ export async function updatePayment(
   id: number,
   data: {
     amount?: number;
+    cost?: number;
     method?: string;
     category?: string | null;
     occurredOn?: string;
@@ -154,6 +157,89 @@ export async function manualIncomeInPeriod(
   return Number(row?.value ?? 0);
 }
 
+/** Расходники по ручным доходам за период (себестоимость проданного). */
+export async function manualCostInPeriod(
+  database: AppDatabase,
+  from: string,
+  to: string,
+): Promise<number> {
+  const row = await database
+    .select({ value: sql<number>`coalesce(sum(${payments.cost}), 0)` })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.direction, 'in'),
+        sql`${payments.orderId} is null`,
+        gte(payments.occurredOn, from),
+        lte(payments.occurredOn, to),
+      ),
+    )
+    .get();
+  return Number(row?.value ?? 0);
+}
+
+/** Условие «предоплата относится к периоду» — общее для суммы и списка. */
+function prepaymentPeriodConditions(from: string, to: string) {
+  return and(
+    sql`${orders.status} <> 'issued'`,
+    sql`${orders.prepayment} > 0`,
+    sql`date(${orders.prepaymentAt}) >= ${from}`,
+    sql`date(${orders.prepaymentAt}) <= ${to}`,
+  );
+}
+
+/** Предоплаты по не выданным заказам за период — деньги уже получены. */
+export async function prepaymentsInPeriod(
+  database: AppDatabase,
+  from: string,
+  to: string,
+): Promise<number> {
+  const row = await database
+    .select({ value: sql<number>`coalesce(sum(${orders.prepayment}), 0)` })
+    .from(orders)
+    .where(prepaymentPeriodConditions(from, to))
+    .get();
+  return Number(row?.value ?? 0);
+}
+
+/** Список предоплат за период — строки для выгрузки в CSV. */
+export async function prepaymentsListInPeriod(
+  database: AppDatabase,
+  from: string,
+  to: string,
+) {
+  return database
+    .select({
+      number: orders.number,
+      clientName: orders.clientName,
+      deviceLabel: orders.deviceLabel,
+      prepayment: orders.prepayment,
+      prepaymentAt: orders.prepaymentAt,
+    })
+    .from(orders)
+    .where(prepaymentPeriodConditions(from, to))
+    .orderBy(desc(orders.prepaymentAt))
+    .all();
+}
+
+/** Предоплаты, внесённые за конкретный день. */
+export async function prepaymentsOnDay(
+  database: AppDatabase,
+  day: string,
+): Promise<number> {
+  const row = await database
+    .select({ value: sql<number>`coalesce(sum(${orders.prepayment}), 0)` })
+    .from(orders)
+    .where(
+      and(
+        sql`${orders.status} <> 'issued'`,
+        sql`date(${orders.prepaymentAt}) = ${day}`,
+      ),
+    )
+    .get();
+  return Number(row?.value ?? 0);
+}
+
 /** Расходы по категориям за период — для круговой диаграммы. */
 export async function expensesByCategory(
   database: AppDatabase,
@@ -212,6 +298,7 @@ export async function paymentsOnDay(database: AppDatabase, day: string) {
       orderId: payments.orderId,
       direction: payments.direction,
       amount: payments.amount,
+      cost: payments.cost,
       method: payments.method,
       category: payments.category,
       note: payments.note,
