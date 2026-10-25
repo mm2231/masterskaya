@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 
 import { db } from '../../db.js';
-import { clients, orders } from '@masterskaya/db';
+import { clients, orders, inTransaction } from '@masterskaya/db';
 import { findOrCreateClient } from '../clients/repository.js';
 import { getSetting } from '../settings/repository.js';
 import { nextOrderNumber } from './numbering.js';
@@ -100,15 +100,20 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // Клиент заводится сам: справочник наполняется по мере оформления
     // заказов, руками ничего заполнять не нужно.
     const phone = data.clientPhone?.trim();
-    let clientId = data.clientId ?? null;
-    if (!clientId && phone) {
-      const client = await findOrCreateClient(db(), { name: data.clientName, phone });
-      clientId = client?.id ?? null;
-    }
 
-    const order = await createOrder(db(), { ...data, number, clientId });
-    await logEvent(db(), order.id, 'created', `Заказ ${number} создан`, {
-      status: order.status,
+    // Клиент, заказ и событие в журнале пишутся одной транзакцией:
+    // частичный заказ (без клиента или без события) невозможен.
+    const order = inTransaction(db(), () => {
+      let clientId = data.clientId ?? null;
+      if (!clientId && phone) {
+        const client = findOrCreateClient(db(), { name: data.clientName, phone });
+        clientId = client?.id ?? null;
+      }
+      const created = createOrder(db(), { ...data, number, clientId });
+      logEvent(db(), created.id, 'created', `Заказ ${number} создан`, {
+        status: created.status,
+      });
+      return created;
     });
 
     return reply.code(201).send({ order });
@@ -165,56 +170,64 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const order = await updateOrder(db(), id, data);
+    // Обновление заказа, журнал событий и правка клиента в справочнике —
+    // одна транзакция: либо всё, либо ничего.
+    const order = inTransaction(db(), () => {
+      const updated = updateOrder(db(), id, data);
+      if (!updated) {
+        return null;
+      }
+
+      if (data.status && data.status !== current.order.status) {
+        logEvent(
+          db(),
+          id,
+          'status_changed',
+          `Статус: ${statusLabel(current.order.status)} → ${statusLabel(data.status)}`,
+          { from: current.order.status, to: data.status },
+        );
+      }
+      if (data.clientTotal !== undefined && data.clientTotal !== current.order.clientTotal) {
+        logEvent(db(), id, 'total_changed', `Сумма для клиента: ${data.clientTotal}`, {
+          from: current.order.clientTotal,
+          to: data.clientTotal,
+        });
+      }
+      if (data.costTotal !== undefined && data.costTotal !== current.order.costTotal) {
+        logEvent(db(), id, 'cost_changed', `Себестоимость: ${data.costTotal}`, {
+          from: current.order.costTotal,
+          to: data.costTotal,
+        });
+      }
+      if (data.clientName !== undefined && data.clientName !== current.order.clientName) {
+        logEvent(
+          db(),
+          id,
+          'client_changed',
+          data.clientName ? `Клиент: ${data.clientName}` : 'Клиент убран',
+          { from: current.order.clientName, to: data.clientName },
+        );
+
+        // По просьбе меняем имя у клиента и во всех его заказах: в заказах
+        // хранится копия имени, и без этого они расходятся.
+        if (alsoUpdateClient && current.order.clientId && data.clientName) {
+          const name = String(data.clientName);
+          db().update(clients)
+            .set({ name, updatedAt: nowSql() })
+            .where(eq(clients.id, current.order.clientId))
+            .run();
+          db().update(orders)
+            .set({ clientName: name })
+            .where(eq(orders.clientId, current.order.clientId))
+            .run();
+        }
+      }
+
+      return updated;
+    });
+
     if (!order) {
       return reply.code(404).send({ error: 'Заказ не найден' });
-    }
-
-    if (data.status && data.status !== current.order.status) {
-      await logEvent(
-        db(),
-        id,
-        'status_changed',
-        `Статус: ${statusLabel(current.order.status)} → ${statusLabel(data.status)}`,
-        { from: current.order.status, to: data.status },
-      );
-    }
-    if (data.clientTotal !== undefined && data.clientTotal !== current.order.clientTotal) {
-      await logEvent(db(), id, 'total_changed', `Сумма для клиента: ${data.clientTotal}`, {
-        from: current.order.clientTotal,
-        to: data.clientTotal,
-      });
-    }
-    if (data.costTotal !== undefined && data.costTotal !== current.order.costTotal) {
-      await logEvent(db(), id, 'cost_changed', `Себестоимость: ${data.costTotal}`, {
-        from: current.order.costTotal,
-        to: data.costTotal,
-      });
-    }
-    if (data.clientName !== undefined && data.clientName !== current.order.clientName) {
-      await logEvent(
-        db(),
-        id,
-        'client_changed',
-        data.clientName ? `Клиент: ${data.clientName}` : 'Клиент убран',
-        { from: current.order.clientName, to: data.clientName },
-      );
-
-      // По просьбе меняем имя у клиента и во всех его заказах: в заказах
-      // хранится копия имени, и без этого они расходятся.
-      if (alsoUpdateClient && current.order.clientId && data.clientName) {
-        const name = String(data.clientName);
-        await db()
-          .update(clients)
-          .set({ name, updatedAt: nowSql() })
-          .where(eq(clients.id, current.order.clientId))
-          .run();
-        await db()
-          .update(orders)
-          .set({ clientName: name })
-          .where(eq(orders.clientId, current.order.clientId))
-          .run();
-      }
     }
 
     return { order };

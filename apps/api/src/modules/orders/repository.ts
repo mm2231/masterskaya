@@ -191,14 +191,14 @@ export async function orderHistory(database: AppDatabase, orderId: number) {
 }
 
 /** Добавить запись в журнал событий. */
-export async function logEvent(
+export function logEvent(
   database: AppDatabase,
   orderId: number,
   type: string,
   message?: string,
   payload?: Record<string, unknown>,
 ) {
-  const [row] = await database
+  const [row] = database
     .insert(orderEvents)
     .values({
       orderId,
@@ -208,12 +208,13 @@ export async function logEvent(
       // Время задаём явно: значение по умолчанию в схеме — это UTC.
       createdAt: nowSql(),
     })
-    .returning();
+    .returning()
+    .all();
   return row!;
 }
 
 /** Создать заказ. */
-export async function createOrder(
+export function createOrder(
   database: AppDatabase,
   data: {
     number: string;
@@ -233,7 +234,7 @@ export async function createOrder(
     warrantyMonths?: number;
   },
 ) {
-  const [row] = await database
+  const [row] = database
     .insert(orders)
     .values({
       number: data.number,
@@ -255,21 +256,23 @@ export async function createOrder(
       acceptedAt: nowSql(),
       createdAt: nowSql(),
     })
-    .returning();
+    .returning()
+    .all();
   return row!;
 }
 
 /** Обновить заказ. */
-export async function updateOrder(
+export function updateOrder(
   database: AppDatabase,
   id: number,
   data: Record<string, unknown>,
 ) {
-  const [row] = await database
+  const [row] = database
     .update(orders)
     .set({ ...data, updatedAt: nowSql() })
     .where(eq(orders.id, id))
-    .returning();
+    .returning()
+    .all();
   return row ?? null;
 }
 

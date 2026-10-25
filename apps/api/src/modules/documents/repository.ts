@@ -64,7 +64,7 @@ export async function getDocument(database: AppDatabase, id: number) {
 }
 
 /** Создать документ. */
-export async function createDocument(
+export function createDocument(
   database: AppDatabase,
   data: {
     orderId: number;
@@ -74,7 +74,7 @@ export async function createDocument(
     snapshot?: Record<string, unknown> | null;
   },
 ) {
-  const [row] = await database
+  const [row] = database
     .insert(documents)
     .values({
       orderId: data.orderId,
@@ -86,7 +86,8 @@ export async function createDocument(
       issuedAt: nowSql(),
       createdAt: nowSql(),
     })
-    .returning();
+    .returning()
+    .all();
   return row!;
 }
 

@@ -68,11 +68,18 @@ export interface ImportReport {
  *
  * Клиенты сверяются по телефону, заказы — по номеру: повторный импорт
  * не создаёт дублей. Остальные записи добавляются как есть.
+ *
+ * Весь импорт выполняется в одной транзакции: ошибка посередине
+ * откатывает всё, «половина данных» в базе не остаётся.
+ *
+ * Транзакция у Drizzle поверх better-sqlite3 синхронная — код
+ * внутри колбэка не использует await.
  */
-export async function importAll(
+export function importAll(
   database: AppDatabase,
   data: Partial<ExportData>,
-): Promise<ImportReport> {
+): ImportReport {
+  return database.transaction(() => {
   const report: ImportReport = {
     clients: 0,
     orders: 0,
@@ -91,7 +98,7 @@ export async function importAll(
     if (!key) continue;
     const value = row.value;
     if (value === undefined) continue;
-    await database
+    database
       .insert(settings)
       .values({ key, value: value as never, updatedAt: nowSql() })
       .onConflictDoUpdate({
@@ -107,7 +114,7 @@ export async function importAll(
   for (const row of (data.clients ?? []) as Array<Record<string, unknown>>) {
     const phone = String(row.phone ?? '').trim();
     const existing = phone
-      ? await database
+      ? database
           .select({ id: clients.id })
           .from(clients)
           .where(eq(clients.phone, phone))
@@ -118,7 +125,7 @@ export async function importAll(
       report.skipped += 1;
       continue;
     }
-    const [created] = await database
+    const [created] = database
       .insert(clients)
       .values({
         name: String(row.name ?? 'Клиент без имени'),
@@ -130,7 +137,8 @@ export async function importAll(
         tags: (row.tags as string[]) ?? [],
         createdAt: String(row.createdAt ?? new Date().toISOString()),
       })
-      .returning();
+      .returning()
+      .all();
     if (row.id) clientMap.set(Number(row.id), created!.id);
     report.clients += 1;
   }
@@ -140,7 +148,7 @@ export async function importAll(
   for (const row of (data.orders ?? []) as Array<Record<string, unknown>>) {
     const number = String(row.number ?? '').trim();
     const existing = number
-      ? await database
+      ? database
           .select({ id: orders.id })
           .from(orders)
           .where(eq(orders.number, number))
@@ -152,7 +160,7 @@ export async function importAll(
       continue;
     }
     const oldClientId = row.clientId ? Number(row.clientId) : 0;
-    const [created] = await database
+    const [created] = database
       .insert(orders)
       .values({
         number,
@@ -174,7 +182,8 @@ export async function importAll(
         warrantyMonths: Number(row.warrantyMonths ?? 0),
         notes: (row.notes as string | null) ?? null,
       })
-      .returning();
+      .returning()
+      .all();
     if (row.id) orderMap.set(Number(row.id), created!.id);
     report.orders += 1;
   }
@@ -189,7 +198,7 @@ export async function importAll(
     // Событие уже есть, если совпали заказ, тип, текст и время.
     const message = (row.message as string | null) ?? null;
     const createdAt = String(row.createdAt ?? new Date().toISOString());
-    const existing = await database
+    const existing = database
       .select({ id: orderEvents.id })
       .from(orderEvents)
       .where(
@@ -205,7 +214,7 @@ export async function importAll(
       report.skipped += 1;
       continue;
     }
-    await database.insert(orderEvents).values({
+    database.insert(orderEvents).values({
       orderId,
       type: String(row.type ?? 'note'),
       message,
@@ -221,7 +230,7 @@ export async function importAll(
       report.skipped += 1;
       continue;
     }
-    await database.insert(orderTasks).values({
+    database.insert(orderTasks).values({
       orderId,
       title: String(row.title ?? ''),
       dueAt: (row.dueAt as string | null) ?? null,
@@ -237,7 +246,7 @@ export async function importAll(
       report.skipped += 1;
       continue;
     }
-    await database.insert(documents).values({
+    database.insert(documents).values({
       orderId,
       kind: String(row.kind ?? 'works'),
       number: String(row.number ?? ''),
@@ -253,7 +262,7 @@ export async function importAll(
     const occurredOn = String(row.occurredOn ?? new Date().toISOString().slice(0, 10));
     const amount = Number(row.amount ?? 0);
     // Платёж уже есть, если совпали заказ, дата, сумма и направление.
-    const existing = await database
+    const existing = database
       .select({ id: payments.id })
       .from(payments)
       .where(
@@ -269,7 +278,7 @@ export async function importAll(
       report.skipped += 1;
       continue;
     }
-    await database.insert(payments).values({
+    database.insert(payments).values({
       orderId,
       direction: String(row.direction ?? 'out'),
       amount,
@@ -281,5 +290,6 @@ export async function importAll(
     report.payments += 1;
   }
 
-  return report;
+    return report;
+  });
 }

@@ -43,7 +43,7 @@ export async function listPayments(
 }
 
 /** Добавить платёж (приход или расход). */
-export async function createPayment(
+export function createPayment(
   database: AppDatabase,
   data: {
     orderId?: number | null;
@@ -55,10 +55,11 @@ export async function createPayment(
     note?: string | null;
   },
 ) {
-  const [row] = await database
+  const [row] = database
     .insert(payments)
     .values({ ...data, createdAt: nowSql() })
-    .returning();
+    .returning()
+    .all();
   return row!;
 }
 

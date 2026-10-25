@@ -1,6 +1,7 @@
 /** HTTP-маршруты финансов: /api/finance… */
 
 import { paymentInputSchema, paymentPatchSchema, summarize, todayIso } from '@masterskaya/shared';
+import { inTransaction } from '@masterskaya/db';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -113,27 +114,32 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     }
     const data = parsed.data;
 
-    const payment = await createPayment(db(), {
-      orderId: data.orderId ?? null,
-      direction: data.direction,
-      amount: data.amount,
-      method: data.method,
-      category: data.category || null,
-      occurredOn: data.occurredOn,
-      note: data.note || null,
-    });
-
-    if (data.orderId) {
-      const message =
-        data.direction === 'in'
-          ? `Оплата: +${data.amount}`
-          : `Расход по заказу: −${data.amount}`;
-      await logEvent(db(), data.orderId, 'payment', message, {
-        paymentId: payment.id,
+    // Платёж и запись в журнале заказа — одна транзакция.
+    const payment = inTransaction(db(), () => {
+      const created = createPayment(db(), {
+        orderId: data.orderId ?? null,
         direction: data.direction,
         amount: data.amount,
+        method: data.method,
+        category: data.category || null,
+        occurredOn: data.occurredOn,
+        note: data.note || null,
       });
-    }
+
+      if (data.orderId) {
+        const message =
+          data.direction === 'in'
+            ? `Оплата: +${data.amount}`
+            : `Расход по заказу: −${data.amount}`;
+        logEvent(db(), data.orderId, 'payment', message, {
+          paymentId: created.id,
+          direction: data.direction,
+          amount: data.amount,
+        });
+      }
+
+      return created;
+    });
 
     return reply.code(201).send({ payment });
   });

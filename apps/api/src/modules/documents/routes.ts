@@ -1,6 +1,7 @@
 /** HTTP-маршруты документов: /api/documents… */
 
 import { documentInputSchema, numberToWords, orderMargin, orderProfit } from '@masterskaya/shared';
+import { inTransaction } from '@masterskaya/db';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -91,27 +92,33 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       (await getSetting<string>(db(), 'documentNumberPattern')) ?? '{YYYY}-{SEQ}';
     const number = data.number || (await nextDocumentNumber(db(), data.kind, pattern));
 
-    const document = await createDocument(db(), {
-      orderId: data.orderId,
-      kind: data.kind,
-      number,
-      note: data.note || null,
-      snapshot: {
-        clientTotal: loaded.order.clientTotal,
-        workDescription: loaded.order.workDescription,
-        deviceLabel: loaded.order.deviceLabel,
-      },
-    });
+    // Документ и запись в журнале создаются одной транзакцией:
+    // акт без события или событие без акта недопустимы.
+    const document = inTransaction(db(), () => {
+      const created = createDocument(db(), {
+        orderId: data.orderId,
+        kind: data.kind,
+        number,
+        note: data.note || null,
+        snapshot: {
+          clientTotal: loaded.order.clientTotal,
+          workDescription: loaded.order.workDescription,
+          deviceLabel: loaded.order.deviceLabel,
+        },
+      });
 
-    await logEvent(
-      db(),
-      data.orderId,
-      'document',
-      data.kind === 'acceptance'
-        ? `Приёмный акт №${number} создан`
-        : `Акт выполненных работ №${number} создан`,
-      { documentId: document.id, kind: data.kind, number },
-    );
+      logEvent(
+        db(),
+        data.orderId,
+        'document',
+        data.kind === 'acceptance'
+          ? `Приёмный акт №${number} создан`
+          : `Акт выполненных работ №${number} создан`,
+        { documentId: created.id, kind: data.kind, number },
+      );
+
+      return created;
+    });
 
     return reply.code(201).send({ document });
   });

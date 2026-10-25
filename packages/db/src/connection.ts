@@ -31,3 +31,30 @@ export function openRawDatabase(path: string): Database.Database {
   sqlite.pragma('foreign_keys = ON');
   return sqlite;
 }
+
+/**
+ * Выполнить несколько записей одной транзакцией.
+ *
+ * Транзакция открывается вручную на сыром соединении: тип внутри
+ * колбэка — тот же AppDatabase, поэтому репозитории не знают о
+ * транзакциях. При ошибке все изменения откатываются целиком.
+ *
+ * Колбэк должен быть синхронным: better-sqlite3 не умеет
+ * приостанавливать транзакцию между await.
+ */
+export function inTransaction<T>(database: AppDatabase, run: () => T): T {
+  const sqlite: Database.Database = database.$client;
+  sqlite.exec('BEGIN');
+  try {
+    const result = run();
+    sqlite.exec('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      sqlite.exec('ROLLBACK');
+    } catch {
+      // Транзакция могла закрыться сама — откатывать нечего.
+    }
+    throw error;
+  }
+}

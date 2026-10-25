@@ -86,7 +86,7 @@ export async function getClient(database: AppDatabase, id: number) {
 }
 
 /** Найти клиента по телефону (нормализованному). */
-export async function findByPhone(database: AppDatabase, phone: string) {
+export function findByPhone(database: AppDatabase, phone: string) {
   return database.select().from(clients).where(eq(clients.phone, phone)).get();
 }
 
@@ -97,12 +97,12 @@ export async function findByPhone(database: AppDatabase, phone: string) {
  * в справочнике заполнять не нужно. По телефону ищется точно — в базе
  * телефон уникален.
  */
-export async function findOrCreateClient(
+export function findOrCreateClient(
   database: AppDatabase,
   data: { name?: string | null; phone: string },
 ) {
   const phone = data.phone.trim();
-  const existing = await findByPhone(database, phone);
+  const existing = findByPhone(database, phone);
   if (existing) return existing;
 
   // Телефон может быть пустым у клиента — тогда клиента не заводим.
@@ -121,7 +121,7 @@ export async function allPhones(database: AppDatabase): Promise<string[]> {
 }
 
 /** Создать клиента. */
-export async function createClient(
+export function createClient(
   database: AppDatabase,
   data: {
     name: string;
@@ -133,7 +133,7 @@ export async function createClient(
     tags?: string[];
   },
 ) {
-  const [row] = await database
+  const [row] = database
     .insert(clients)
     .values({
       name: data.name,
@@ -146,7 +146,8 @@ export async function createClient(
       // Время задаём явно: значение по умолчанию в схеме — это UTC.
       createdAt: nowSql(),
     })
-    .returning();
+    .returning()
+    .all();
   return row!;
 }
 
