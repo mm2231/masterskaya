@@ -23,7 +23,7 @@ import { and, eq, sql } from 'drizzle-orm';
 
 import type { AppDatabase } from '../db.js';
 import { clients, orderEvents, orders, payments } from '@masterskaya/db';
-import { nowSql } from '@masterskaya/shared';
+import { normalizePhone, nowSql } from '@masterskaya/shared';
 
 /** Старый статус → новый. */
 const STATUS_MAP: Record<string, string> = {
@@ -38,15 +38,6 @@ export interface ImportReport {
   clients: { total: number; created: number; skipped: number };
   orders: { total: number; created: number; skipped: number };
   payments: { total: number; created: number; skipped: number };
-}
-
-/** Нормализация телефона: только цифры и «+». */
-function normalizePhone(value: string): string {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) return '';
-  const plus = trimmed.startsWith('+');
-  const digits = trimmed.replace(/\D/g, '');
-  return plus ? `+${digits}` : digits;
 }
 
 /**

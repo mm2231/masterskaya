@@ -5,8 +5,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { platform, release, arch } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { sql } from 'drizzle-orm';
+import { count } from 'drizzle-orm';
 import { nowSql, timezoneLabel } from '@masterskaya/shared';
+import { clients, documents, orders, payments } from '@masterskaya/db';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -98,15 +99,16 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     }
 
     // Сколько записей в базе — признак, что БД открылась нормально.
+    // Счёт берём типизированными запросами Drizzle — без сырого SQL.
     const counts: Record<string, number | string> = {};
     try {
-      const database2 = db();
-      for (const table of ['orders', 'clients', 'documents', 'payments']) {
-        const rows = (await database2.all(sql.raw(`select count(*) as n from ${table}`))) as Array<{
-          n: number;
-        }>;
-        counts[table] = Number(rows[0]?.n ?? 0);
-      }
+      const conn = db();
+      counts.orders = Number(conn.select({ value: count() }).from(orders).get()?.value ?? 0);
+      counts.clients = Number(conn.select({ value: count() }).from(clients).get()?.value ?? 0);
+      counts.documents = Number(
+        conn.select({ value: count() }).from(documents).get()?.value ?? 0,
+      );
+      counts.payments = Number(conn.select({ value: count() }).from(payments).get()?.value ?? 0);
     } catch (error) {
       counts.error = 'не удалось посчитать';
       counts.message = String(error).slice(0, 200);

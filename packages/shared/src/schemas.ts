@@ -13,6 +13,14 @@ export const phoneSchema = z
     message: 'Телефон должен содержать не менее 7 цифр',
   });
 
+/** Нормализация телефона для хранения: только цифры и «+» в начале. */
+export function normalizePhone(value: string): string {
+  const trimmed = value.trim();
+  const plus = trimmed.startsWith('+');
+  const digits = trimmed.replace(/\D/g, '');
+  return plus ? `+${digits}` : digits;
+}
+
 export const clientInputSchema = z.object({
   name: z.string().trim().min(1, 'Укажите имя клиента').max(200),
   phone: phoneSchema,

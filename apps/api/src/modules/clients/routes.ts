@@ -1,6 +1,10 @@
 /** HTTP-маршруты клиентов: /api/clients… */
 
-import { clientInputSchema, clientUpdateSchema } from '@masterskaya/shared';
+import {
+  clientInputSchema,
+  clientUpdateSchema,
+  normalizePhone,
+} from '@masterskaya/shared';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../../db.js';
@@ -16,14 +20,6 @@ import {
   listClients,
   updateClient,
 } from './repository.js';
-
-/** Нормализация телефона: только цифры и «+» в начале. */
-export function normalizePhone(value: string): string {
-  const trimmed = value.trim();
-  const plus = trimmed.startsWith('+');
-  const digits = trimmed.replace(/\D/g, '');
-  return plus ? `+${digits}` : digits;
-}
 
 export async function registerClientRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/clients', async (request) => {

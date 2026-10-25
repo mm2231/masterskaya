@@ -5,11 +5,12 @@
  * приложения: SQLite сам согласует чтение с копированием.
  */
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { Env } from './env.js';
 import { backupDir, databasePath } from './env.js';
+import { openRawDatabase } from '@masterskaya/db';
 
 function stamp(): string {
   const now = new Date();
@@ -20,15 +21,27 @@ function stamp(): string {
   );
 }
 
-/** Сделать копию БД. Возвращает путь к файлу или null при ошибке. */
-export function makeBackup(env: Env): string | null {
+/**
+ * Сделать копию БД. Возвращает путь к файлу или null при ошибке.
+ *
+ * Копирование идёт через SQLite Online Backup API (`db.backup()`):
+ * он читает базу постранично и согласован с активными транзакциями.
+ * Обычное копирование файла (copyFileSync) на WAL-базе может дать
+ * копию без последних транзакций — они живут в файле *.db-wal.
+ */
+export async function makeBackup(env: Env): Promise<string | null> {
   try {
     const source = databasePath(env);
     if (!existsSync(source)) return null;
     const dir = backupDir(env);
     mkdirSync(dir, { recursive: true });
     const target = join(dir, `workshop_${stamp()}.db`);
-    copyFileSync(source, target);
+    const sqlite = openRawDatabase(source);
+    try {
+      await sqlite.backup(target);
+    } finally {
+      sqlite.close();
+    }
     pruneBackups(dir, env.BACKUP_KEEP);
     return target;
   } catch {
@@ -54,13 +67,13 @@ function pruneBackups(dir: string, keep: number): void {
 
 /** Фоновый поток: копия базы по расписанию. */
 export function startBackupScheduler(env: Env): void {
-  const run = () => {
-    const target = makeBackup(env);
+  const run = async () => {
+    const target = await makeBackup(env);
     if (target) {
       console.log(`Резервная копия: ${target}`);
     }
   };
-  run();
+  void run();
   const intervalMs = Math.max(1, env.BACKUP_INTERVAL_HOURS) * 3600_000;
   setInterval(run, intervalMs).unref();
 }
