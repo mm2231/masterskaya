@@ -518,7 +518,10 @@ describe('предоплата', () => {
     const afterSummary = after.json().summary;
     expect(afterSummary.revenue).toBe(beforeSummary.revenue + 30);
     expect(afterSummary.prepayments).toBe(beforeSummary.prepayments + 30);
-    expect(afterSummary.profit).toBe(beforeSummary.profit + 30);
+    // Прибыль кассой: предоплата 30 при себестоимости 40 не делает заказ
+    // прибыльным — расходники уже куплены.
+    expect(afterSummary.cost).toBe(beforeSummary.cost + 40);
+    expect(afterSummary.profit).toBe(beforeSummary.profit + 30 - 40);
   });
 
   it('при выдаче не считается дважды', async () => {
@@ -547,6 +550,41 @@ describe('предоплата', () => {
     // Выданный заказ добавляет только остаток: 100 − уже учтённые 30.
     expect(afterSummary.revenue).toBe(beforeSummary.revenue + 70);
     expect(afterSummary.prepayments).toBe(beforeSummary.prepayments - 30);
+    // И сводится честно: −10 (30 − 40) при приёме → +60 (100 − 40) при выдаче.
+    expect(afterSummary.profit).toBe(beforeSummary.profit + 70);
+  });
+
+  it('кейс мастера: ремонт 100, расходники 50, предоплата 80', async () => {
+    const before = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const beforeSummary = before.json().summary;
+
+    const { order } = await createOrder({
+      clientTotal: 100,
+      costTotal: 50,
+      prepayment: 80,
+      status: 'new',
+    });
+
+    const accepted = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const acceptedSummary = accepted.json().summary;
+    // Прибыль кассой: 80 получено − 50 расходники = 30, а не 80 и не 50.
+    expect(acceptedSummary.profit).toBe(beforeSummary.profit + 30);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'ready' },
+    });
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/orders/${order.id}`,
+      payload: { status: 'issued' },
+    });
+
+    const after = await app.inject({ method: 'GET', url: '/api/finance/summary' });
+    const afterSummary = after.json().summary;
+    // После выдачи маржа полная: 100 − 50 = 50.
+    expect(afterSummary.profit).toBe(beforeSummary.profit + 50);
   });
 
   it('правка предоплаты пишется в журнал и снимается в ноль', async () => {

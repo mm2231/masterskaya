@@ -48,7 +48,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     const issued = await issuedInPeriod(db(), from, to);
     const manualIncome = await manualIncomeInPeriod(db(), from, to);
     const manualCost = await manualCostInPeriod(db(), from, to);
-    const prepayments = await prepaymentsInPeriod(db(), from, to);
+    const openPrepay = await prepaymentsInPeriod(db(), from, to);
     const expenses = await expensesInPeriod(db(), from, to);
     const byCategory = await expensesByCategory(db(), from, to);
 
@@ -56,8 +56,19 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
       issued.map((order) => ({
         clientTotal: order.clientTotal,
         costTotal: order.costTotal,
+        prepayment: order.prepayment,
+        prepaymentAt: order.prepaymentAt,
       })),
-      { manualIncome, manualCost, prepayments, expenses },
+      {
+        manualIncome,
+        manualCost,
+        expenses,
+        from,
+        to,
+        openPrepayments: openPrepay.prepayments
+          ? [{ prepayment: openPrepay.prepayments, costTotal: openPrepay.cost }]
+          : [],
+      },
     );
 
     return { from, to, summary, expensesByCategory: byCategory };
@@ -73,7 +84,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     const day = todayIso();
     const issued = await issuedOnDay(db(), day);
     const movements = await paymentsOnDay(db(), day);
-    const prepayments = await prepaymentsOnDay(db(), day);
+    const openPrepay = await prepaymentsOnDay(db(), day);
 
     // Ручные доходы — только движения без заказа: выручка выданных заказов
     // уже учтена в issued и не должна считаться второй раз.
@@ -91,8 +102,19 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
       issued.map((order) => ({
         clientTotal: order.clientTotal,
         costTotal: order.costTotal,
+        prepayment: order.prepayment,
+        prepaymentAt: order.prepaymentAt,
       })),
-      { manualIncome, manualCost, prepayments, expenses },
+      {
+        manualIncome,
+        manualCost,
+        expenses,
+        from: day,
+        to: day,
+        openPrepayments: openPrepay.prepayments
+          ? [{ prepayment: openPrepay.prepayments, costTotal: openPrepay.cost }]
+          : [],
+      },
     );
 
     return {
@@ -256,13 +278,26 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
     ]);
     const money = (value: number) => value.toFixed(2).replace('.', ',');
     for (const order of issued) {
-      const profit = Number(order.clientTotal) - Number(order.costTotal);
+      const prepayment = Number(order.prepayment);
+      const prepaidElsewhere =
+        prepayment > 0 &&
+        !!order.prepaymentAt &&
+        ((order.prepaymentAt ?? '').slice(0, 10) < from ||
+          (order.prepaymentAt ?? '').slice(0, 10) > to);
+      // Предоплата, учтённая в прежнем периоде, повторно не выдаётся:
+      // за день получена только доплата, её себестоимость уже списана.
+      const revenue = prepaidElsewhere
+        ? Number(order.clientTotal) - prepayment
+        : Number(order.clientTotal);
+      const cost = prepaidElsewhere ? 0 : Number(order.costTotal);
       rows.push([
         (order.issuedAt ?? '').slice(0, 10),
-        'Доход (выданный заказ)',
-        money(Number(order.clientTotal)),
-        money(Number(order.costTotal)),
-        money(profit),
+        prepaidElsewhere
+          ? 'Доход (доплата за выданный заказ)'
+          : 'Доход (выданный заказ)',
+        money(revenue),
+        money(cost),
+        money(revenue - cost),
         '',
         order.number,
         order.clientName ?? '',
@@ -271,12 +306,13 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
       ]);
     }
     for (const item of prepayments) {
+      const cost = Number(item.costTotal ?? 0);
       rows.push([
         (item.prepaymentAt ?? '').slice(0, 10),
         'Предоплата (заказ не выдан)',
         money(Number(item.prepayment)),
-        '',
-        money(Number(item.prepayment)),
+        money(cost),
+        money(Number(item.prepayment) - cost),
         '',
         item.number,
         item.clientName ?? '',

@@ -71,13 +71,18 @@ describe('сводка за период', () => {
     expect(summary.margin).toBe(0);
   });
 
-  it('предоплата входит в выручку, даже если заказ не выдан', () => {
-    // Выданных заказов нет — только предоплата по заказу в работе.
-    const summary = summarize([], { prepayments: 50 });
+  it('предоплата входит в выручку вместе со своей себестоимостью', () => {
+    // Ремонт 100, расходники 50, предоплата 80: прибыль кассой 30,
+    // а не 80 — расход уже понесён.
+    const summary = summarize(
+      [],
+      { openPrepayments: [{ prepayment: 80, costTotal: 50 }] },
+    );
 
-    expect(summary.revenue).toBe(50);
-    expect(summary.prepayments).toBe(50);
-    expect(summary.profit).toBe(50);
+    expect(summary.revenue).toBe(80);
+    expect(summary.prepayments).toBe(80);
+    expect(summary.cost).toBe(50);
+    expect(summary.profit).toBe(30);
   });
 
   it('расходники уменьшают прибыль ручного дохода', () => {
@@ -96,12 +101,52 @@ describe('сводка за период', () => {
     const summary = summarize([{ clientTotal: 100, costTotal: 40 }], {
       manualIncome: 130,
       manualCost: 50,
-      prepayments: 20,
+      openPrepayments: [{ prepayment: 20, costTotal: 0 }],
       expenses: 10,
     });
 
+    expect(summary.prepayments).toBe(20);
     expect(summary.revenue).toBe(250);
     expect(summary.profit).toBe(150);
+  });
+
+  it('выданным сегодня заказом предоплата из прежнего периода не удваивается', () => {
+    // Приняли в сентябре (предоплата 30 учтена там же со своей
+    // себестоимостью), выдали в октябре — сейчас получена только доплата.
+    const summary = summarize(
+      [
+        {
+          clientTotal: 100,
+          costTotal: 40,
+          prepayment: 30,
+          prepaymentAt: '2026-09-20 12:00:00',
+        },
+      ],
+      { from: '2026-10-01', to: '2026-10-31' },
+    );
+
+    expect(summary.revenue).toBe(70);
+    expect(summary.cost).toBe(0);
+    expect(summary.profit).toBe(70);
+  });
+
+  it('выданный сегодня заказ с предоплатой сегодня считается целиком', () => {
+    // Приняли и выдали в один период: вся сумма+себестоимость — здесь.
+    const summary = summarize(
+      [
+        {
+          clientTotal: 100,
+          costTotal: 40,
+          prepayment: 30,
+          prepaymentAt: '2026-10-20 12:00:00',
+        },
+      ],
+      { from: '2026-10-01', to: '2026-10-31' },
+    );
+
+    expect(summary.revenue).toBe(100);
+    expect(summary.cost).toBe(40);
+    expect(summary.profit).toBe(60);
   });
 });
 

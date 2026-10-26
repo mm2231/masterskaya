@@ -188,18 +188,27 @@ function prepaymentPeriodConditions(from: string, to: string) {
   );
 }
 
-/** Предоплаты по не выданным заказам за период — деньги уже получены. */
+/** Предоплаты по не выданным заказам за период — деньги уже получены.
+ * Возвращает и себестоимость этих заказов: расход понесён, прибыль
+ * считается кассой, иначе «предоплата 80 при расходниках 50» покажет
+ * прибыль 80. */
 export async function prepaymentsInPeriod(
   database: AppDatabase,
   from: string,
   to: string,
-): Promise<number> {
+): Promise<{ prepayments: number; cost: number }> {
   const row = await database
-    .select({ value: sql<number>`coalesce(sum(${orders.prepayment}), 0)` })
+    .select({
+      prepayments: sql<number>`coalesce(sum(${orders.prepayment}), 0)`,
+      cost: sql<number>`coalesce(sum(${orders.costTotal}), 0)`,
+    })
     .from(orders)
     .where(prepaymentPeriodConditions(from, to))
     .get();
-  return Number(row?.value ?? 0);
+  return {
+    prepayments: Number(row?.prepayments ?? 0),
+    cost: Number(row?.cost ?? 0),
+  };
 }
 
 /** Список предоплат за период — строки для выгрузки в CSV. */
@@ -215,6 +224,8 @@ export async function prepaymentsListInPeriod(
       deviceLabel: orders.deviceLabel,
       prepayment: orders.prepayment,
       prepaymentAt: orders.prepaymentAt,
+      costTotal: orders.costTotal,
+      status: orders.status,
     })
     .from(orders)
     .where(prepaymentPeriodConditions(from, to))
@@ -226,9 +237,12 @@ export async function prepaymentsListInPeriod(
 export async function prepaymentsOnDay(
   database: AppDatabase,
   day: string,
-): Promise<number> {
+): Promise<{ prepayments: number; cost: number }> {
   const row = await database
-    .select({ value: sql<number>`coalesce(sum(${orders.prepayment}), 0)` })
+    .select({
+      prepayments: sql<number>`coalesce(sum(${orders.prepayment}), 0)`,
+      cost: sql<number>`coalesce(sum(${orders.costTotal}), 0)`,
+    })
     .from(orders)
     .where(
       and(
@@ -237,7 +251,10 @@ export async function prepaymentsOnDay(
       ),
     )
     .get();
-  return Number(row?.value ?? 0);
+  return {
+    prepayments: Number(row?.prepayments ?? 0),
+    cost: Number(row?.cost ?? 0),
+  };
 }
 
 /** Расходы по категориям за период — для круговой диаграммы. */
@@ -276,6 +293,8 @@ export async function issuedOnDay(database: AppDatabase, day: string) {
       deviceLabel: orders.deviceLabel,
       clientTotal: orders.clientTotal,
       costTotal: orders.costTotal,
+      prepayment: orders.prepayment,
+      prepaymentAt: orders.prepaymentAt,
       issuedAt: orders.issuedAt,
       workDescription: orders.workDescription,
     })

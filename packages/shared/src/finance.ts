@@ -21,7 +21,7 @@ export interface PeriodSummary {
   manualIncome: number;
   /** Расходники по ручным доходам — их себестоимость. */
   manualCost: number;
-  /** Предоплаты по заказам, ещё не выданным: деньги уже получены. */
+  /** Предоплаты по ещё не выданным заказам: деньги уже получены. */
   prepayments: number;
   expenses: number;
 }
@@ -78,26 +78,58 @@ export function orderMargin(order: OrderAmounts): number {
   return (orderProfit(order) / total) * 100;
 }
 
+/** Заказ для сводки периода. */
+export interface PeriodOrderAmounts extends OrderAmounts {
+  /** Предоплата по заказу — она уже в доходе предыдущих/этого периода. */
+  prepayment?: number;
+  /** Дата предоплаты: по ней видно, в каком периоде её учли. */
+  prepaymentAt?: string | null;
+}
+
+/** Предоплата по не выданному заказу внутри периода. */
+export interface OpenPrepayment {
+  /** Сумма предоплаты — деньги уже получены. */
+  prepayment: number;
+  /** Себестоимость этого заказа — расход уже понесён. */
+  costTotal: number;
+}
+
 /**
- * Сводка за период.
+ * Дата YYYY-MM-DD (первые 10 символов любой даты со временем).
+ */
+function dayOf(value: string): string {
+  return value.slice(0, 10);
+}
+
+/**
+ * Сводка за период — по кассе.
  *
- * Деньги считаются по заказам, ВЫДАННЫМ в периоде (дата выдачи): выручка
- * появляется, когда клиент расплатился.
+ * Выручка появляется, когда получены деньги:
+ *
+ * - выданный заказ даёт сумму целиком, если вся оплата пришла в этом
+ *   периоде (предоплаты нет или предоплата датирована тем же периодом);
+ * - выданный заказ, предоплата которого зависла в прежнем периоде,
+ *   добавляет только доплату (clientTotal − prepayment): сама предоплата
+ *   уже сидит в выручке того периода вместе со своей себестоимостью.
+ *   Поэтому рубль попадает в выручку ровно один раз;
+ * - предоплата по не выданному заказу (openPrepayments) даёт выручку
+ *   сразу и несёт свою себестоимость: прибыль считать честно, а не «80
+ *   при расходниках 50».
+ *
  * Прочие доходы (мелкие работы без заказа) добавляются к выручке.
- *
- * Предоплаты по ещё не выданным заказам тоже входят в выручку сразу:
- * клиент уже отдал деньги. Когда заказ выдали, он попадает в выручку
- * целиком (clientTotal), а предоплата перестаёт учитываться отдельно —
- * двойного счёта нет.
  */
 export function summarize(
-  issuedOrders: readonly OrderAmounts[],
+  issuedOrders: readonly PeriodOrderAmounts[],
   options: {
     ordersCount?: number;
     manualIncome?: number;
     manualCost?: number;
-    prepayments?: number;
     expenses?: number;
+    /** Границы периода — для проверки «предоплата учитывалась раньше?» */
+    from?: string;
+    to?: string;
+    /** Предоплаты по не выданным заказам периода. */
+    openPrepayments?: readonly OpenPrepayment[];
   } = {},
 ): PeriodSummary {
   const summary = emptySummary();
@@ -105,22 +137,45 @@ export function summarize(
   summary.issuedCount = issuedOrders.length;
 
   for (const order of issuedOrders) {
-    summary.revenue += toNumber(order.clientTotal);
-    summary.cost += toNumber(order.costTotal);
+    const prepayment = toNumber(order.prepayment);
+    const paidElsewhere =
+      prepayment > 0 &&
+      !!order.prepaymentAt &&
+      !!options.from &&
+      !!options.to &&
+      (dayOf(order.prepaymentAt) < options.from || dayOf(order.prepaymentAt) > options.to);
+
+    if (paidElsewhere) {
+      // Предоплата со своей себестоимостью учтена в прежнем периоде —
+      // сейчас получена только доплата.
+      summary.revenue += toNumber(order.clientTotal) - prepayment;
+    } else {
+      summary.revenue += toNumber(order.clientTotal);
+      summary.cost += toNumber(order.costTotal);
+    }
+  }
+
+  for (const item of options.openPrepayments ?? []) {
+    const prepayment = toNumber(item.prepayment);
+    summary.prepayments += prepayment;
+    summary.revenue += prepayment;
+    // У затрат по этим заказам дата это приём/предоплата — себестоимость
+    // уходит в расход того же периода, иначе прибыль обманывает.
+    summary.cost += toNumber(item.costTotal);
   }
 
   summary.manualIncome = toNumber(options.manualIncome);
   summary.manualCost = toNumber(options.manualCost);
-  summary.prepayments = toNumber(options.prepayments);
   summary.expenses = toNumber(options.expenses);
 
-  // Прочие доходы и предоплаты — часть выручки периода.
-  summary.revenue += summary.manualIncome + summary.prepayments;
+  // Прочие доходы — часть выручки периода.
+  summary.revenue += summary.manualIncome;
   summary.profit =
     summary.revenue - summary.cost - summary.manualCost - summary.expenses;
   summary.margin = summary.revenue ? (summary.profit / summary.revenue) * 100 : 0;
   summary.averageCheck = summary.issuedCount
-    ? issuedOrders.reduce((sum, order) => sum + toNumber(order.clientTotal), 0) / summary.issuedCount
+    ? issuedOrders.reduce((sum, order) => sum + toNumber(order.clientTotal), 0) /
+      summary.issuedCount
     : 0;
 
   return summary;
