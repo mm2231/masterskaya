@@ -322,7 +322,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         '',
         item.number,
         item.clientName ?? '',
-        item.deviceLabel ?? '',
+        item.workDescription || item.deviceLabel || '',
       ]);
     }
     for (const item of items) {

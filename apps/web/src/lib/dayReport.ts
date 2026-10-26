@@ -119,7 +119,7 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
     rows.push({
       date: day,
       client: clientParts || 'Предоплата',
-      work: '',
+      work: item.workDescription?.trim() || 'предоплата',
       cost: null,
       revenue: prepayment,
       profit: prepayment,
@@ -146,6 +146,14 @@ export function dayReportTotals(data: TodayData) {
   };
 }
 
+/**
+ * Формула «Прибыль», не привязанная к строке: вставляется текстом,
+ * Google Sheets распознаёт её как формулу, ROW() берёт строку вставки.
+ * Пустая ячейка затёрла бы формулу листа (E−D), а значение оставило бы
+ * колонку «мёртвой» для будущих правок — формула сохраняет поведение.
+ */
+const PROFIT_CELL = '=INDIRECT("E"&ROW())-INDIRECT("D"&ROW())';
+
 /** TSV без заголовков: одна табуляция между колонками. */
 export function dayReportTsv(rows: readonly DayReportRow[]): string {
   return rows
@@ -156,10 +164,9 @@ export function dayReportTsv(rows: readonly DayReportRow[]): string {
         row.work,
         cellMoney(row.cost),
         cellMoney(row.revenue),
-        // Прибыль не копируем: в таблице пользователя колонка «Прибыль»
-        // считается формулой, значение затёрло бы её. Пустая ячейка —
-        // формула Sheets сама протянется на вставленные строки.
-        '',
+        // Колонка «Прибыль»: самоссылочная formula — Sheets сама считает
+        // E−D в строке вставки, формулы листа не затираются впустую.
+        PROFIT_CELL,
         row.status,
         row.note,
       ]

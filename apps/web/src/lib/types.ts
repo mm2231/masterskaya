@@ -213,6 +213,7 @@ export interface TodayPrepayment {
   prepayment: number;
   prepaymentAt: string | null;
   costTotal?: number;
+  workDescription?: string | null;
   status: string;
 }
 

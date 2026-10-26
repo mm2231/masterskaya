@@ -225,6 +225,7 @@ export async function prepaymentsListInPeriod(
       prepayment: orders.prepayment,
       prepaymentAt: orders.prepaymentAt,
       costTotal: orders.costTotal,
+      workDescription: orders.workDescription,
       status: orders.status,
     })
     .from(orders)
