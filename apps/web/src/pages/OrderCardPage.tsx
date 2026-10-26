@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useToast } from '../components/Toast';
 import { api } from '../lib/api';
 import { formatDateTime, formatMoney } from '../lib/format';
+import { orderProfitAtStage } from '@masterskaya/shared';
 import type { DocumentRow, OrderCard, Payment, TaskListResponse } from '../lib/types';
 import { OrderTab } from '../features/orders/OrderTab';
 import { CreateDocumentButton } from '../features/orders/CreateDocumentButton';
@@ -84,7 +85,8 @@ export function OrderCardPage() {
   }
 
   const { order, history, allowedTransitions } = card.data;
-  const profit = order.clientTotal - order.costTotal;
+  const fullProfit = order.clientTotal - order.costTotal;
+  // Прибыль на текущий момент «кассой»: только то, что клиент уже отдал.
   const orderPayments = (payments.data?.items ?? []).filter((item) => item.orderId === orderId);
   const paid = orderPayments
     .filter((item) => item.direction === 'in')
@@ -94,6 +96,12 @@ export function OrderCardPage() {
   // не лежит: она уже в доходе и уменьшает сумму к доплате.
   const paidTotal = prepayment + paid;
   const toPay = Math.max(order.clientTotal - paidTotal, 0);
+  const profit = orderProfitAtStage({
+    clientTotal: order.clientTotal,
+    costTotal: order.costTotal,
+    paid: paidTotal,
+    issued: Boolean(order.issuedAt),
+  });
 
 
   return (
@@ -129,7 +137,12 @@ export function OrderCardPage() {
             {formatMoney(profit)}
           </div>
           <div className="kpi-hint">
-            {order.clientTotal ? `${Math.round((profit / order.clientTotal) * 100)}%` : '—'}
+            {order.issuedAt
+              ? order.clientTotal
+                ? `${Math.round((profit / order.clientTotal) * 100)}%`
+                : '—'
+              // По кассе: остаток к доплате — недополученная прибыль.
+              : `после выдачи ${formatMoney(fullProfit)} (${toPay > 0 ? `осталось ${formatMoney(toPay)}` : 'оплачено полностью'})`}
           </div>
         </div>
         <div className="kpi">

@@ -61,6 +61,8 @@ export interface Order {
   prepayment: number;
   /** Дата предоплаты — по ней она попадает в период. */
   prepaymentAt: string | null;
+  /** Внесённые из кассы оплаты по заказу (без предоплаты); есть в списке заказов. */
+  paid?: number;
   acceptedAt: string;
   promisedAt: string | null;
   readyAt: string | null;

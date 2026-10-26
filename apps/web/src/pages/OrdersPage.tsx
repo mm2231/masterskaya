@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ORDER_STATUSES } from '@masterskaya/shared';
+import { ORDER_STATUSES, orderProfitAtStage } from '@masterskaya/shared';
 
 import { EmptyState } from '../components/EmptyState';
 import { StatusBadge } from '../components/StatusBadge';
@@ -159,7 +159,14 @@ export function OrdersPage() {
 }
 
 function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
-  const profit = order.clientTotal - order.costTotal;
+  // Прибыль на текущий момент «кассой»: только полученные деньги минус
+  // себестоимость. У выданного заказа — полная маржа.
+  const profit = orderProfitAtStage({
+    clientTotal: order.clientTotal,
+    costTotal: order.costTotal,
+    paid: Number(order.prepayment ?? 0) + Number(order.paid ?? 0),
+    issued: Boolean(order.issuedAt),
+  });
   return (
     <tr>
       <td className="nowrap">
@@ -175,7 +182,7 @@ function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
         <StatusBadge code={order.status} />
       </td>
       <td className="num">{formatMoney(order.clientTotal)}</td>
-      <td className="num" style={{ color: profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+      <td className={`num ${profit >= 0 ? 'pos' : 'neg'}`}>
         {formatMoney(profit)}
       </td>
       <td>

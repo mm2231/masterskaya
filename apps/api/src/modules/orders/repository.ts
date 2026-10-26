@@ -4,7 +4,7 @@ import { and, count, desc, eq, gte, inArray, like, lte, or, sql } from 'drizzle-
 import { nowSql } from '@masterskaya/shared';
 
 import type { AppDatabase } from '../../db.js';
-import { clients, documents, orderEvents, orders } from '@masterskaya/db';
+import { clients, documents, orderEvents, orders, payments } from '@masterskaya/db';
 
 export interface OrderListFilters {
   q?: string;
@@ -19,7 +19,7 @@ export interface OrderListFilters {
   sort: 'date_desc' | 'date_asc' | 'sum_desc' | 'sum_asc';
 }
 
-/** Заказ вместе с именем клиента и количеством документов. */
+/** Заказ вместе с именем клиента, количеством документов и полученными деньгами. */
 export interface OrderListItem {
   id: number;
   number: string;
@@ -33,6 +33,8 @@ export interface OrderListItem {
   costTotal: number;
   prepayment: number;
   prepaymentAt: string | null;
+  /** Внесённые оплаты из кассы (без предоплаты) — для кассовой прибыли. */
+  paid: number;
   acceptedAt: string;
   promisedAt: string | null;
   readyAt: string | null;
@@ -136,6 +138,11 @@ export async function listOrders(
       costTotal: orders.costTotal,
       prepayment: orders.prepayment,
       prepaymentAt: orders.prepaymentAt,
+      paid: sql<number>`(
+        select coalesce(sum(p.amount), 0)
+        from ${payments} p
+        where p.order_id = ${orders.id} and p.direction = 'in'
+      )`,
       acceptedAt: orders.acceptedAt,
       promisedAt: orders.promisedAt,
       readyAt: orders.readyAt,

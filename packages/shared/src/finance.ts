@@ -48,6 +48,29 @@ export function orderProfit(order: OrderAmounts): number {
   return toNumber(order.clientTotal) - toNumber(order.costTotal);
 }
 
+export interface OrderProfitStage extends OrderAmounts {
+  /** Получено от клиента: предоплата плюс внесённые платежи. */
+  paid: number;
+  /** Заказ выдан — деньги получены полностью. */
+  issued?: boolean;
+}
+
+/**
+ * Прибыль по заказу на текущий момент, «кассой»: только деньги, которые
+ * клиент уже отдал, минус себестоимость. Пока заказ не выдан, остаток
+ * к доплате — недополученная прибыль, в цифре его нет.
+ *
+ * Пример: ремонт 100, расходники 50, предоплата 80.
+ * Сейчас прибыль 30 (80 − 50), после выдачи станет 50 (100 − 50).
+ */
+export function orderProfitAtStage(order: OrderProfitStage): number {
+  const total = toNumber(order.clientTotal);
+  const paid = order.issued
+    ? total
+    : Math.min(Math.max(toNumber(order.paid), 0), total);
+  return paid - toNumber(order.costTotal);
+}
+
 /** Маржа в процентах от суммы клиенту. */
 export function orderMargin(order: OrderAmounts): number {
   const total = toNumber(order.clientTotal);

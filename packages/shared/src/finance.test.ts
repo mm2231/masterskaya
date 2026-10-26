@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { orderMargin, orderProfit, orderDebt, summarize } from './finance.js';
+import { orderMargin, orderProfit, orderProfitAtStage, orderDebt, summarize } from './finance.js';
 
 describe('прибыль по заказу', () => {
   it('считает сумму клиенту минус себестоимость', () => {
@@ -15,6 +15,33 @@ describe('прибыль по заказу', () => {
 
   it('не делит на ноль', () => {
     expect(orderMargin({ clientTotal: 0, costTotal: 10 })).toBe(0);
+  });
+});
+
+describe('прибыль по этапу (кассой)', () => {
+  it('недоплаченная часть не считается прибылью', () => {
+    // Ремонт 100, расходники 50, предоплата 80 → сейчас 30, после выдачи 50.
+    const order = { clientTotal: 100, costTotal: 50, paid: 80 };
+    expect(orderProfitAtStage(order)).toBe(30);
+    expect(orderProfitAtStage({ ...order, issued: true })).toBe(50);
+  });
+
+  it('складывает предоплату и внесённые платежи', () => {
+    expect(
+      orderProfitAtStage({ clientTotal: 100, costTotal: 50, paid: 90 }),
+    ).toBe(40);
+  });
+
+  it('полученное не больше суммы заказа', () => {
+    expect(
+      orderProfitAtStage({ clientTotal: 100, costTotal: 50, paid: 150 }),
+    ).toBe(50);
+  });
+
+  it('считает отрицательную прибыль без предоплаты', () => {
+    expect(
+      orderProfitAtStage({ clientTotal: 100, costTotal: 50, paid: 0 }),
+    ).toBe(-50);
   });
 });
 
