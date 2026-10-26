@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { api } from '../../lib/api';
 import { formatDate, formatMoney, formatPhone, formatTime } from '../../lib/format';
 import type { TodayData } from '../../lib/types';
+import { DayReportActions } from './DayReportActions';
 
 export function TodayPanel() {
   const today = useQuery({
@@ -32,6 +33,7 @@ export function TodayPanel() {
           {today.data ? formatDate(today.data.date) : '…'} · выдано заказов:{' '}
           {s?.issuedCount ?? 0}
         </span>
+        <DayReportActions />
       </div>
 
       <div className="panel-body">

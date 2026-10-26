@@ -11,12 +11,14 @@ import { OrdersPage } from '../pages/OrdersPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { TasksPage } from '../pages/TasksPage';
 import { PrintDocument } from '../print/PrintDocument';
+import { DayReport } from '../print/DayReport';
 
 export function App() {
   return (
     <Routes>
       {/* Печатный документ — без оболочки приложения. */}
       <Route path="/orders/:id/print/:kind" element={<PrintDocument />} />
+      <Route path="/print/day" element={<DayReport />} />
       <Route element={<Layout />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/orders" element={<OrdersPage />} />

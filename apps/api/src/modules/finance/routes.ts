@@ -80,11 +80,16 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
    * Основа — заказы, выданные сегодня (по дате выдачи). Дополнительно
    * учитываются оплаты за сегодня: доходы без заказа и расходы.
    */
-  app.get('/api/finance/today', async () => {
-    const day = todayIso();
+  /** Сводка за текущий день (или день из ?date=). */
+  app.get('/api/finance/today', async (request) => {
+    const params = request.query as Record<string, string | undefined>;
+    const day =
+      params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayIso();
     const issued = await issuedOnDay(db(), day);
     const movements = await paymentsOnDay(db(), day);
     const openPrepay = await prepaymentsOnDay(db(), day);
+    // Список предоплат дня — отдельные строки для отчёта/выгрузки.
+    const prepayList = await prepaymentsListInPeriod(db(), day, day);
 
     // Ручные доходы — только движения без заказа: выручка выданных заказов
     // уже учтена в issued и не должна считаться второй раз.
@@ -125,6 +130,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         profit: Number(order.clientTotal) - Number(order.costTotal),
       })),
       payments: movements,
+      prepayments: prepayList,
     };
   });
 

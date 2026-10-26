@@ -271,6 +271,61 @@
   font-size: 9px;
 }
 
+/* ── Отчёт за рабочий день ───────────────────────────────────────────── */
+
+.report-date {
+  text-align: center;
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #444;
+  padding: 3px 5px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.report-table th {
+  background: #f2f2f2;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.report-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.report-table tfoot td {
+  font-weight: 700;
+  border-top: 2px solid #000;
+  background: #fafafa;
+}
+
+.report-table .report-empty {
+  text-align: center;
+  color: #555;
+  padding: 8px;
+}
+
+.report-summary {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #333;
+}
+
+.report-table .nowrap {
+  white-space: nowrap;
+}
+
 @media print {
   /* Высота 100% у html/body/#root заставляет содержимое быть выше листа
      (учитывая поля @page) и акт уходит на вторую страницу. */

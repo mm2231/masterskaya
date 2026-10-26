@@ -198,9 +198,22 @@ export interface TodayOrder {
   deviceLabel: string | null;
   clientTotal: number;
   costTotal: number;
+  prepayment?: number | null;
+  prepaymentAt?: string | null;
   profit: number;
   issuedAt: string | null;
   workDescription: string | null;
+}
+
+/** Предоплата дня: заказ ещё не выдан, деньги уже получены. */
+export interface TodayPrepayment {
+  number: string;
+  clientName: string | null;
+  deviceLabel: string | null;
+  prepayment: number;
+  prepaymentAt: string | null;
+  costTotal?: number;
+  status: string;
 }
 
 /** Сводка за текущий день: выданные заказы и прибыль за день. */
@@ -218,6 +231,8 @@ export interface TodayData {
     category: string | null;
     note: string | null;
   }[];
+  /** Предоплаты этого дня — по не выданным заказам. */
+  prepayments?: TodayPrepayment[];
 }
 
 /** Прошлый заказ клиента — подсказка при оформлении нового. */

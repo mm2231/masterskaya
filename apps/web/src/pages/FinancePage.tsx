@@ -11,6 +11,7 @@ import { formatMoney } from '../lib/format';
 import type { FinanceSummary, Payment } from '../lib/types';
 import { PaymentForm } from '../features/finance/PaymentForm';
 import { EditPaymentModal } from '../features/finance/EditPaymentModal';
+import { DayReportActions } from '../features/finance/DayReportActions';
 
 export function FinancePage() {
   const [from, setFrom] = useState('');
@@ -52,6 +53,7 @@ export function FinancePage() {
     <>
       <div className="page-head">
         <h1>Финансы</h1>
+        <DayReportActions />
         <a
           className="btn"
           href={`/api/finance/export?from=${summary.data?.from ?? ''}&to=${summary.data?.to ?? ''}`}
