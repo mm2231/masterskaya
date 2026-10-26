@@ -156,7 +156,10 @@ export function dayReportTsv(rows: readonly DayReportRow[]): string {
         row.work,
         cellMoney(row.cost),
         cellMoney(row.revenue),
-        cellMoney(row.profit),
+        // Прибыль не копируем: в таблице пользователя колонка «Прибыль»
+        // считается формулой, значение затёрло бы её. Пустая ячейка —
+        // формула Sheets сама протянется на вставленные строки.
+        '',
         row.status,
         row.note,
       ]
