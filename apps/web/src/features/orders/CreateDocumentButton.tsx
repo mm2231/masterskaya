@@ -35,9 +35,10 @@ export function CreateDocumentButton({
       type="button"
       className="btn"
       disabled={create.isPending}
+      aria-busy={create.isPending || undefined}
       onClick={() => create.mutate()}
     >
-      {label}
+      {create.isPending ? 'Создаём…' : label}
     </button>
   );
 }

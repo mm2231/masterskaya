@@ -62,14 +62,23 @@ export function OrderCardPage() {
   if (card.isLoading) {
     return (
       <div className="panel">
-        <div className="panel-body">Загрузка…</div>
+        <div className="panel-loading">Загрузка заказа…</div>
       </div>
     );
   }
   if (!card.data) {
     return (
       <div className="panel">
-        <EmptyState icon="🔍" title="Заказ не найден" />
+        <EmptyState
+          icon="🔍"
+          title="Заказ не найден"
+          hint="Возможно, заказ удалён или ссылка устарела"
+          action={
+            <button type="button" className="btn" onClick={() => navigate(-1)}>
+              ← Назад к списку
+            </button>
+          }
+        />
       </div>
     );
   }
@@ -93,14 +102,14 @@ export function OrderCardPage() {
         <button type="button" className="btn ghost" onClick={() => navigate(-1)}>
           ← Назад
         </button>
-        <h1>
+        <h1 className="card-title">
           Заказ №{order.number} <StatusBadge code={order.status} />
         </h1>
-        <CreateDocumentButton orderId={orderId} kind="works" label="📄 Создать акт работ" />
+        <CreateDocumentButton orderId={orderId} kind="works" label="Акт работ" />
         <CreateDocumentButton
           orderId={orderId}
           kind="acceptance"
-          label="📥 Создать приёмный акт"
+          label="Приёмный акт"
         />
         <NotifyButtons orderId={orderId} />
       </div>
@@ -133,7 +142,7 @@ export function OrderCardPage() {
         </div>
       </div>
 
-      <div className="chips">
+      <div className="chips" role="tablist" aria-label="Разделы карточки заказа">
         {(
           [
             ['order', 'Заказ'],
@@ -146,6 +155,8 @@ export function OrderCardPage() {
           <button
             key={key}
             type="button"
+            role="tab"
+            aria-selected={tab === key}
             className={`chip ${tab === key ? 'active' : ''}`}
             onClick={() => setTab(key)}
           >
@@ -170,14 +181,9 @@ export function OrderCardPage() {
               <EmptyState icon="📜" title="Событий пока нет" />
             ) : (
               history.map((event) => (
-                <div
-                  key={event.id}
-                  style={{ padding: '9px 0', borderBottom: '1px solid var(--border)' }}
-                >
-                  <div style={{ fontWeight: 550 }}>{event.message || event.type}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {formatDateTime(event.createdAt)}
-                  </div>
+                <div key={event.id} className="event-row">
+                  <div className="event-title">{event.message || event.type}</div>
+                  <div className="event-date">{formatDateTime(event.createdAt)}</div>
                 </div>
               ))
             )}
@@ -211,7 +217,7 @@ export function OrderCardPage() {
                       </td>
                       <td>{formatDateTime(document.issuedAt)}</td>
                       <td className="num">
-                        <Link className="btn sm" to={`/orders/${orderId}/print/${document.kind}`}>
+                        <Link className="btn sm ghost" to={`/orders/${orderId}/print/${document.kind}`}>
                           Открыть
                         </Link>
                       </td>
@@ -270,11 +276,10 @@ export function OrderCardPage() {
       {tab === 'tasks' ? (
         <section className="panel">
           <div className="panel-head">
-            ✅ Задачи по заказу
+            <span>Задачи по заказу</span>
             <button
               type="button"
-              className="btn sm"
-              style={{ marginLeft: 'auto' }}
+              className="btn sm head-action"
               onClick={() => setTaskModalOpen(true)}
             >
               ＋ Задача

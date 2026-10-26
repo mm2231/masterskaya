@@ -97,7 +97,7 @@ export function SettingsPage() {
         <section className="panel">
           <div className="panel-head">Реквизиты мастерской</div>
           <div className="panel-body">
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+            <p className="panel-intro">
               Эти данные подставляются в приёмный акт и акт выполненных работ.
             </p>
             <label className="field">
@@ -151,7 +151,7 @@ export function SettingsPage() {
         <section className="panel">
           <div className="panel-head">Нумерация документов</div>
           <div className="panel-body">
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+            <p className="panel-intro">
               Подстановки: <code>{'{YYYY}'}</code> — год, <code>{'{SEQ}'}</code> — порядковый
               номер.
             </p>
@@ -186,41 +186,37 @@ export function SettingsPage() {
         <section className="panel">
           <div className="panel-head">Обновление приложения</div>
           <div className="panel-body">
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+            <p className="panel-intro">
               Приложение обновляется напрямую с GitHub. База данных при этом не
               затрагивается — обновляется только код.
             </p>
 
             {update.data ? (
-              <div style={{ marginBottom: 14 }}>
-                <div>
+              <div className="update-status">
+                <div className="update-meta">
                   <strong>Установленная версия:</strong>{' '}
                   <code>{update.data.current?.short ?? '—'}</code>{' '}
                   {update.data.current?.subject ?? ''}
                 </div>
                 {update.data.current?.date ? (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    от {update.data.current.date.slice(0, 10)}
-                  </div>
+                  <div className="update-meta">от {update.data.current.date.slice(0, 10)}</div>
                 ) : null}
-                <div style={{ marginTop: 6 }}>
-                  {update.data.available ? (
-                    <span style={{ color: 'var(--primary)' }}>
-                      Доступно обновлений: {update.data.remote?.behind ?? 0}
-                      {update.data.remote?.subject
-                        ? ` — ${update.data.remote.subject}`
-                        : ''}
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      {update.data.reason ?? 'Установлена последняя версия'}
-                    </span>
-                  )}
-                </div>
+                {update.data.available ? (
+                  <p className="update-note available">
+                    Доступно обновлений: {update.data.remote?.behind ?? 0}
+                    {update.data.remote?.subject ? ` — ${update.data.remote.subject}` : ''}
+                  </p>
+                ) : (
+                  <p className="update-note">
+                    {update.data.reason ?? 'Установлена последняя версия'}
+                  </p>
+                )}
               </div>
             ) : (
-              <p style={{ color: 'var(--text-muted)' }}>
-                {update.isPending ? 'Проверяю обновления…' : 'Нажмите «Проверить», чтобы узнать о новых версиях.'}
+              <p className="panel-intro">
+                {update.isPending
+                  ? 'Проверяем обновления…'
+                  : 'Нажмите «Проверить», чтобы узнать о новых версиях.'}
               </p>
             )}
 
@@ -229,6 +225,7 @@ export function SettingsPage() {
                 type="button"
                 className="btn"
                 disabled={update.isPending}
+                aria-busy={update.isPending || undefined}
                 onClick={() => void update.refetch()}
               >
                 Проверить обновления
@@ -237,13 +234,14 @@ export function SettingsPage() {
                 type="button"
                 className="btn primary"
                 disabled={install.isPending || !update.data?.available}
+                aria-busy={install.isPending || undefined}
                 onClick={() => install.mutate()}
               >
-                {install.isPending ? 'Обновляю…' : 'Установить и перезапустить'}
+                {install.isPending ? 'Обновляем…' : 'Установить и перезапустить'}
               </button>
             </div>
             {update.data?.available ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 0 }}>
+              <p className="update-note">
                 После установки приложение перезапустится, а страница откроется
                 заново.
               </p>
@@ -254,7 +252,7 @@ export function SettingsPage() {
         <section className="panel">
           <div className="panel-head">Диагностика</div>
           <div className="panel-body">
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+            <p className="panel-intro">
               Если что-то не работает — скопируйте этот отчёт и пришлите его.
               Здесь видно, какая система, где база и что записано в журнале.
             </p>
@@ -262,9 +260,10 @@ export function SettingsPage() {
               type="button"
               className="btn"
               disabled={diagnostics.isPending}
+              aria-busy={diagnostics.isPending || undefined}
               onClick={() => void diagnostics.refetch()}
             >
-              {diagnostics.isPending ? 'Собираю…' : 'Обновить отчёт'}
+              {diagnostics.isPending ? 'Собираем…' : 'Обновить отчёт'}
             </button>
             {diagnostics.data ? (
               <div className="diag-block">
@@ -289,7 +288,7 @@ export function SettingsPage() {
                   </code>
                 </div>
                 {diagnostics.data.build.stale ? (
-                  <div className="diag-warn">
+                  <div className="diag-warn" role="status">
                     ⚠ Сборка отстаёт от исходников (последнее изменение:{' '}
                     {diagnostics.data.build.newestSource}). Интерфейс может быть
                     старым — перезапустите приложение, оно пересоберётся само.
@@ -333,8 +332,7 @@ export function SettingsPage() {
                 ) : null}
                 <button
                   type="button"
-                  className="btn sm"
-                  style={{ marginTop: 10 }}
+                  className="btn sm diag-actions"
                   onClick={() => {
                     const report = JSON.stringify(diagnostics.data, null, 2);
                     void navigator.clipboard?.writeText(report);
@@ -351,15 +349,15 @@ export function SettingsPage() {
         <section className="panel">
           <div className="panel-head">Резервная копия данных</div>
           <div className="panel-body">
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
+            <p className="panel-intro">
               Выгрузите все данные в JSON-файл — его можно сохранить на флешку или
               перенести на другой компьютер. Импорт не создаёт дубликаты: клиенты
               сверяются по телефону, заказы — по номеру.
             </p>
             <a className="btn" href="/api/settings/export">
-              ⬇ Скачать все данные (JSON)
+              Скачать все данные (JSON)
             </a>
-            <label className="field" style={{ marginTop: 14 }}>
+            <label className="field backup-import">
               <span className="field-label">Загрузить файл с данными</span>
               <input
                 type="file"

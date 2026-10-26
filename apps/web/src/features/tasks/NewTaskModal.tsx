@@ -1,6 +1,6 @@
 /** Создание задачи: выбираем заказ, пишем что сделать и ставим срок. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TASK_TEMPLATES, todayIso } from '@masterskaya/shared';
 
@@ -21,6 +21,8 @@ export function NewTaskModal({
   const [due, setDue] = useState(() => todayIso());
   const [time, setTime] = useState('');
   const [search, setSearch] = useState('');
+  const [orderError, setOrderError] = useState('');
+  const [titleError, setTitleError] = useState('');
 
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -48,23 +50,43 @@ export function NewTaskModal({
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!order) {
-      toast.show('Выберите заказ', 'error');
+      setOrderError('Выберите заказ из списка или найдите по номеру');
       return;
     }
+    setOrderError('');
     if (!title.trim()) {
-      toast.show('Напишите, что нужно сделать', 'error');
+      setTitleError('Напишите, что нужно сделать — обязательное поле');
       return;
     }
+    setTitleError('');
     const dueAt = time ? `${due}T${time}` : due;
     create.mutate({ orderId: Number(order), title: title.trim(), dueAt });
   };
 
   const selectedOrder = orders.data?.items.find((item) => String(item.id) === order);
 
+  // Esc закрывает модалку, как диалог.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="overlay" onClick={onClose}>
-      <form className="modal" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">Новая задача</div>
+      <form
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-task-title"
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head" id="new-task-title">
+          Новая задача
+        </div>
         <div className="modal-body">
           {orderId ? (
             <div className="field">
@@ -74,15 +96,25 @@ export function NewTaskModal({
           ) : (
             <>
               <label className="field">
-                <span className="field-label">Заказ *</span>
+                <span className="field-label">
+                  Заказ <span className="req">*</span>
+                </span>
                 <input
                   type="search"
+                  autoFocus
                   placeholder="Поиск: телефон, устройство или номер"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
+                  aria-invalid={orderError ? true : undefined}
+                  aria-describedby={orderError ? 'new-task-order-error' : undefined}
                 />
+                {orderError ? (
+                  <span className="error" id="new-task-order-error">
+                    {orderError}
+                  </span>
+                ) : null}
               </label>
-              <div className="chips" style={{ marginBottom: 12 }}>
+              <div className="chips">
                 {orders.data?.items.slice(0, 6).map((item) => (
                   <button
                     key={item.id}
@@ -111,15 +143,28 @@ export function NewTaskModal({
           )}
 
           <label className="field">
-            <span className="field-label">Что нужно сделать *</span>
+            <span className="field-label">
+              Что нужно сделать <span className="req">*</span>
+            </span>
             <input
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (titleError) setTitleError('');
+              }}
               placeholder="Позвонить клиенту"
+              aria-required="true"
+              aria-invalid={titleError ? true : undefined}
+              aria-describedby={titleError ? 'new-task-title-error' : undefined}
             />
+            {titleError ? (
+              <span className="error" id="new-task-title-error">
+                {titleError}
+              </span>
+            ) : null}
           </label>
 
-          <div className="chips" style={{ marginBottom: 12 }}>
+          <div className="chips">
             {TASK_TEMPLATES.map((template) => (
               <button
                 key={template.title}
@@ -127,7 +172,7 @@ export function NewTaskModal({
                 className={`chip ${title === template.title ? 'active' : ''}`}
                 onClick={() => setTitle(template.title)}
               >
-                {template.icon} {template.title}
+                {template.title}
               </button>
             ))}
           </div>
@@ -147,8 +192,13 @@ export function NewTaskModal({
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" className="btn primary" disabled={create.isPending}>
-            Создать
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={create.isPending}
+            aria-busy={create.isPending || undefined}
+          >
+            {create.isPending ? 'Создаём…' : 'Создать'}
           </button>
         </div>
       </form>

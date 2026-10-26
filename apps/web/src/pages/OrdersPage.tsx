@@ -15,7 +15,8 @@ import { NewOrderModal } from '../features/orders/NewOrderModal';
 
 export function OrdersPage() {
   const [params, setParams] = useSearchParams();
-  const [newOpen, setNewOpen] = useState(false);
+  // Прямые ссылки вида /orders?new=1 сразу открывают приём заказа.
+  const [newOpen, setNewOpen] = useState(() => params.get('new') === '1');
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -77,27 +78,35 @@ export function OrdersPage() {
         ))}
       </div>
 
-      <div className="page-head" style={{ marginBottom: 12 }}>
-        <input
-          type="search"
-          placeholder="Поиск: телефон, устройство, клиент или номер заказа"
-          value={search}
-          onChange={(event) => setParam('q', event.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 240,
-            height: 34,
-            padding: '0 10px',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-elevated)',
-          }}
-        />
+      <div className="toolbar">
+        <div className="search-box">
+          <span className="search-box-icon" aria-hidden="true">
+            🔍
+          </span>
+          <input
+            type="search"
+            aria-label="Поиск по заказам: телефон, устройство, клиент или номер"
+            placeholder="Поиск: телефон, устройство, клиент или номер заказа"
+            value={search}
+            onChange={(event) => setParam('q', event.target.value)}
+          />
+        </div>
+        {list.data ? (
+          <span className="panel-head-note">Найдено: {list.data.items.length}</span>
+        ) : null}
       </div>
 
       {list.isLoading ? (
         <div className="panel">
-          <div className="panel-body">Загрузка…</div>
+          <div className="panel-loading">Загрузка заказов…</div>
+        </div>
+      ) : list.isError ? (
+        <div className="panel">
+          <EmptyState
+            icon="⚠️"
+            title="Не удалось загрузить заказы"
+            hint="Проверьте соединение и обновите страницу"
+          />
         </div>
       ) : (list.data?.items.length ?? 0) === 0 ? (
         <div className="panel">
@@ -118,9 +127,9 @@ export function OrdersPage() {
             <thead>
               <tr>
                 <th>№</th>
-                <th>Принят</th>
+                <th className="col-accepted">Принят</th>
                 <th>Клиент</th>
-                <th>Телефон</th>
+                <th className="col-phone">Телефон</th>
                 <th>Устройство</th>
                 <th>Статус</th>
                 <th className="num">Сумма</th>
@@ -137,7 +146,14 @@ export function OrdersPage() {
         </div>
       )}
 
-      {newOpen ? <NewOrderModal onClose={() => setNewOpen(false)} /> : null}
+      {newOpen ? (
+        <NewOrderModal
+          onClose={() => {
+            setNewOpen(false);
+            if (params.get('new')) setParam('new', '');
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -151,9 +167,9 @@ function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
           №{order.number}
         </Link>
       </td>
-      <td className="nowrap">{formatDateTime(order.acceptedAt)}</td>
+      <td className="nowrap col-accepted">{formatDateTime(order.acceptedAt)}</td>
       <td>{order.clientName ?? '—'}</td>
-      <td className="nowrap">{formatPhone(order.clientPhone)}</td>
+      <td className="nowrap col-phone">{formatPhone(order.clientPhone)}</td>
       <td>{order.deviceLabel ?? '—'}</td>
       <td>
         <StatusBadge code={order.status} />
@@ -164,12 +180,13 @@ function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
       </td>
       <td>
         <div className="row-actions">
-          <Link className="btn sm" to={`/orders/${order.id}`}>
+          <Link className="btn sm ghost" to={`/orders/${order.id}`}>
             Открыть
           </Link>
           <button
             type="button"
-            className="btn sm danger"
+            className="btn sm ghost danger"
+            aria-label={`Удалить заказ №${order.number}`}
             onClick={() => {
               if (window.confirm(`Удалить заказ №${order.number}?`)) onDelete();
             }}

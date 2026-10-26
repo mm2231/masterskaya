@@ -25,17 +25,17 @@ export function TodayPanel() {
   const orders = today.data?.orders ?? [];
 
   return (
-    <section className="panel" style={{ marginBottom: 16 }}>
+    <section className="panel">
       <div className="panel-head">
-        📅 Сегодня
-        <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--text-muted)' }}>
+        <span>Сегодня</span>
+        <span className="panel-head-note">
           {today.data ? formatDate(today.data.date) : '…'} · выдано заказов:{' '}
           {s?.issuedCount ?? 0}
         </span>
       </div>
 
       <div className="panel-body">
-        <div className="kpi-grid" style={{ marginBottom: orders.length ? 16 : 0 }}>
+        <div className="kpi-grid today-kpis">
           <div className="kpi">
             <div className="kpi-label">Выручка за сегодня</div>
             <div className="kpi-value">{formatMoney(s?.revenue ?? 0)}</div>
@@ -69,7 +69,7 @@ export function TodayPanel() {
             hint="Заказы, переведённые в статус «Выдан», появятся здесь. Предоплаты и прочие доходы уже учтены в выручке."
           />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+          <div className="table-wrap flush">
             <table className="data">
               <thead>
                 <tr>
@@ -97,10 +97,7 @@ export function TodayPanel() {
                     <td className="nowrap">{formatPhone(order.clientPhone)}</td>
                     <td className="num">{formatMoney(order.clientTotal)}</td>
                     <td className="num">{formatMoney(order.costTotal)}</td>
-                    <td
-                      className="num"
-                      style={{ color: order.profit >= 0 ? 'var(--success)' : 'var(--danger)' }}
-                    >
+                    <td className={`num ${order.profit >= 0 ? 'pos' : 'neg'}`}>
                       {formatMoney(order.profit)}
                     </td>
                   </tr>

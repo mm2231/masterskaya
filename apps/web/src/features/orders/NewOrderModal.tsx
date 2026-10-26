@@ -1,6 +1,6 @@
 /** Приём заказа: клиент, устройство, неисправность, суммы. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -19,6 +19,8 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
   const [clientTotal, setClientTotal] = useState('');
   const [costTotal, setCostTotal] = useState('');
   const [prepayment, setPrepayment] = useState('');
+  const [totalError, setTotalError] = useState('');
+  const [prepayError, setPrepayError] = useState('');
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -51,19 +53,21 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
     event.preventDefault();
     const total = Number(clientTotal.replace(',', '.'));
     if (!Number.isFinite(total) || total <= 0) {
-      toast.show('Укажите сумму за ремонт', 'error');
+      setTotalError('Укажите сумму за ремонт — обязательное поле');
       return;
     }
+    setTotalError('');
     const cost = Number(costTotal.replace(',', '.'));
     const prepaid = prepayment.trim() ? Number(prepayment.replace(',', '.')) : 0;
     if (!Number.isFinite(prepaid) || prepaid < 0) {
-      toast.show('Предоплата указана неверно', 'error');
+      setPrepayError('Предоплата указана неверно');
       return;
     }
     if (prepaid > total) {
-      toast.show('Предоплата не может быть больше суммы за ремонт', 'error');
+      setPrepayError('Предоплата не может быть больше суммы за ремонт');
       return;
     }
+    setPrepayError('');
     create.mutate({
       clientName: name.trim() || undefined,
       clientPhone: phone.trim() || undefined,
@@ -79,15 +83,34 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
   };
 
 
+  // Esc закрывает форму, как диалог.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="overlay" onClick={onClose}>
-      <form className="modal" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">Приём заказа</div>
+      <form
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-order-title"
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head" id="new-order-title">
+          Приём заказа
+        </div>
         <div className="modal-body">
           <div className="form-grid">
             <label className="field">
               <span className="field-label">Клиент</span>
               <input
+                autoFocus
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Имя клиента"
@@ -173,15 +196,30 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
 
           <div className="form-grid">
             <label className="field">
-              <span className="field-label">Сумма за ремонт (для клиента) *</span>
+              <span className="field-label">
+                Сумма за ремонт <span className="req">*</span>
+              </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
+                inputMode="decimal"
                 value={clientTotal}
-                onChange={(event) => setClientTotal(event.target.value)}
+                onChange={(event) => {
+                  setClientTotal(event.target.value);
+                  if (totalError) setTotalError('');
+                }}
                 placeholder="45"
+                aria-required="true"
+                aria-invalid={totalError ? true : undefined}
+                aria-describedby={totalError ? 'new-order-total-error' : undefined}
               />
+              <span className="field-hint">Баллами не считаем: рубли, дробные через точку</span>
+              {totalError ? (
+                <span className="error" id="new-order-total-error">
+                  {totalError}
+                </span>
+              ) : null}
             </label>
             <label className="field">
               <span className="field-label">Себестоимость</span>
@@ -189,10 +227,12 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
                 type="number"
                 step="0.01"
                 min="0"
+                inputMode="decimal"
                 value={costTotal}
                 onChange={(event) => setCostTotal(event.target.value)}
                 placeholder="20"
               />
+              <span className="field-hint">Запчасти и работы, без наценки</span>
             </label>
           </div>
 
@@ -203,15 +243,26 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
                 type="number"
                 step="0.01"
                 min="0"
+                inputMode="decimal"
                 value={prepayment}
-                onChange={(event) => setPrepayment(event.target.value)}
+                onChange={(event) => {
+                  setPrepayment(event.target.value);
+                  if (prepayError) setPrepayError('');
+                }}
                 placeholder="0"
+                aria-invalid={prepayError ? true : undefined}
+                aria-describedby={prepayError ? 'new-order-prepay-error' : undefined}
               />
               <span className="field-hint">Сразу попадёт в доход, даже без выдачи</span>
+              {prepayError ? (
+                <span className="error" id="new-order-prepay-error">
+                  {prepayError}
+                </span>
+              ) : null}
             </label>
             <div className="field">
               <span className="field-label">К доплате при выдаче</span>
-              <div style={{ paddingTop: 8, fontWeight: 600 }}>
+              <div className="field-echo">
                 {formatMoney(
                   Math.max(
                     Number(clientTotal.replace(',', '.') || 0) -
@@ -227,8 +278,13 @@ export function NewOrderModal({ onClose }: { onClose: () => void }) {
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" className="btn primary" disabled={create.isPending}>
-            Принять заказ
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={create.isPending}
+            aria-busy={create.isPending}
+          >
+            {create.isPending ? 'Принимаем…' : 'Принять заказ'}
           </button>
         </div>
       </form>

@@ -1,0 +1,312 @@
+# REDESIGN_STATE — «Мастерская»
+
+Журнал редизайна интерфейса. Читать перед каждым этапом, дописывать после.
+Печатный контур `apps/web/src/print/` и бизнес-логику/API/БД не трогаем.
+
+## Этап 1 — Разведка (завершён)
+
+### Экраны (`apps/web/src/pages/`)
+| Маршрут | Файл | Назначение |
+|---|---|---|
+| `/` | `DashboardPage.tsx` | KPI, «Сегодня», этапы, задачи |
+| `/orders` | `OrdersPage.tsx` | список, фильтры, приём заказа |
+| `/orders/:id` | `OrderCardPage.tsx` | карточка, вкладки, деньги, задачи |
+| `/tasks` | `TasksPage.tsx` | задачи |
+| `/documents` | `DocumentsPage.tsx` | реестр актов |
+| `/finance` | `FinancePage.tsx` | сводка, форма, журнал |
+| `/settings` | `SettingsPage.tsx` | реквизиты, диагностика, обновление |
+
+### Общие компоненты (`apps/web/src/components/`)
+- `StatusBadge.tsx` — статус заказа.
+- `EmptyState.tsx` — пустое состояние.
+- `Toast.tsx` — уведомления + хук `useToast`.
+
+### Доменные фичи (`apps/web/src/features/`)
+- orders: `NewOrderModal`, `OrderTab`, `StatusTransition`, `CreateDocumentButton`, `NotifyButtons`.
+- finance: `PaymentForm`, `EditPaymentModal`, `TodayPanel`.
+- tasks: `TaskList`, `NewTaskModal`, `EditTaskModal`, `TaskWidget`.
+
+### Оболочка
+- `app/App.tsx`, `app/Layout.tsx` — маршруты, sidebar, topbar, content.
+- `app/useTheme.ts` — светлая/тёмная тема.
+
+### Стили
+- `styles/theme.css` (169 строк) — токены, две темы.
+- `styles/app.css` (1026 строк) — оболочка и базовые классы, адаптив на 900/520 px.
+
+### Порядок работы
+1. Аудит: токены/оболочка → список → форма → карточка.
+2. Дизайн-система: `theme.css`, `DESIGN.md`, шкала spacing.
+3. Базовые компоненты: Button → Input/Search → Badge/Status → Table → Modal → EmptyState/Toast.
+4. Экраны: Dashboard → Orders → OrderCard → Finance → Tasks → Documents → Settings.
+5. Финальная проверка, чек-лист доступности, сборка.
+
+### Нельзя трогать
+- `apps/web/src/print/**` и `print.css` — отдельный A4-контур.
+- `packages/shared/src/finance.ts`, `packages/shared/src/terms.ts`, `packages/db/**`.
+- API-контракты, формулы денег, query keys и инвалидации без необходимости.
+- `apps/web/src/lib/types.ts` — только при изменении контракта (не планируется).
+
+### Ограничения
+- Без новых зависимостей и без библиотеки иконок: используем существующие эмодзи/символы, но приводим их к единому размеру и весу.
+- Не переименовывать существующие CSS-токены; только добавлять/уточнять значения.
+- Радиусы небольшие (4–8 px), тени — только у модалок/поповеров.
+- Один акцент `#2563eb`, нейтральная база, плотная сетка 4/8 px.
+
+## Этап 2 — Аудит (завершён)
+
+### А. Токены (`styles/theme.css`, 169 строк)
+- Палитра и обе темы есть, статусные цвета заданы — база хорошая.
+- Нет шкалы отступов, размеров контролов, типографических размеров, z-index, длительности переходов, токена focus-ring.
+- `--radius: 10px`, `--radius-lg: 14px` — крупно для плотного B2B; `.card` лежит с `box-shadow: var(--shadow-sm)`, то есть тень у статичной поверхности.
+- `--warning: #d97706` на `--warning-soft: #fef3c7` даёт слабый контраст для 12 px текста.
+- `--font` начинается с `Inter`, но шрифт не подключён: фактически системный стек, поведение зависит от машины.
+- Тёмная тема: фон `#0b1120` и статусные soft-цвета избыточно синие/насыщенные.
+
+### Б. Оболочка (`app/Layout.tsx`, `app.css` 1–155)
+- Сайдбар 232 px, мобильная версия выезжает без подложки и без закрытия по клику вне.
+- Эмодзи-иконки навигации разного визуального веса, нет групп, счётчики — pill.
+- Поиск в топбаре высотой 34 px, поля формы — 36 px: рассинхрон.
+- Брейкпоинты только 900 и 520 px; целевые 1280/1024/768/375 не покрыты.
+- `h1` 22 px, отступы 18/20 px — вне сетки 4/8.
+
+### В. Список (`pages/OrdersPage.tsx`, 183 строки)
+- Много inline-стилей: поиск (`height: 34`, border, radius), селект, ячейки таблицы, чипы.
+- Дублирование управления: чипы статусов + `<select>` статуса делают одно и то же.
+- `.row-link` красит каждую ссылку в акцент — акцент перестаёт быть акцентом.
+- Заголовок таблицы `sticky`, но у `.table-wrap` нет ограничения высоты — sticky не работает.
+
+### Г. Дашборд (`pages/DashboardPage.tsx`, 289 строк)
+- Шесть KPI-плиток равного веса, `auto-fit minmax(180px)` даёт рваные ряды на 1280.
+- `TodayPanel` и `TaskWidget` стоят выше KPI — иерархия не соответствует главному вопросу мастера «что делать сейчас».
+- Inline-grid-стили, кнопки переходов статусов с inline-рамками.
+- Числа без контекста периода: непонятно, за какой срок KPI.
+
+### Д. Форма (`features/orders/NewOrderModal.tsx`, 237 строк)
+- Кнопки 34 px против полей 36 px; нет обязательных полей и `aria-invalid`.
+- Деньги — два поля без единицы и подсказки, как считаются.
+- Подсказки прошлых заказов — самодельные блоки вне системы.
+- Нет единого состояния «отправляется» у submit и закрытия по Esc/клику вне (проверить в Этапе 4).
+
+### Е. Карточка (`pages/OrderCardPage.tsx`, 302 строки)
+- Аудит не завершён: разбирается на Этапе 5 вместе с экраном, чтобы не читать дважды.
+
+### Итоговый план
+1. **Токены:** spacing 4→48, control 28/32/36, type 11→24, radius 4/6/8/12, focus-ring, z-index, backdrop, neutral-палитра, тени только у оверлеев.
+2. **Компоненты:** Button → Input/Search → Badge/Status → Table → Modal → EmptyState/Toast; у каждого hover/focus-visible/active/disabled/loading.
+3. **Оболочка:** группы навигации, backdrop и закрытие мобильного меню, брейкпоинты 1280/1024/768/375.
+4. **Экраны:** Dashboard → Orders → OrderCard → Finance → Tasks → Documents → Settings.
+5. **Финал:** клавиатура, aria, контраст, `typecheck` + `test` + `build`.
+
+## Этап 3 — Дизайн-система (завершён)
+
+### Файлы
+- `DESIGN.md` — новый: принципы, палитра, типографика, отступы, радиусы, тени,
+  правила контролов и компонентов, адаптивность, доступность, границы.
+- `styles/theme.css` — расширены токены, обе темы выровнены.
+- `styles/app.css` — у `.card` убрана тень (статичная поверхность).
+
+### Добавлено
+- Отступы `--space-1…--space-12` (4–48 px).
+- Контролы `--control-sm` 28 / `--control` 32 / `--control-lg` 36, `--control-px`.
+- Типографика `--text-2xs…--text-2xl`, `--leading-tight/-leading`.
+- Радиусы `--radius-xs` 4 / `--radius-sm` 6 / `--radius` 8 / `--radius-lg` 12.
+- Состояния: `--primary-active`, `--on-primary`, `--disabled-*`, `--focus-color`,
+  `--focus-ring`, `--backdrop`, `--transition`.
+- Слои `--z-topbar/sidebar/overlay/toast`, `--content-max`, `--topbar-height` 52.
+
+### Изменено
+- Нейтральная палитра вместо сине-серой: фон `#f4f5f7`, границы `#e2e5ea`,
+  текст `#14181f`; тёмная тема — `#0e1116` / `#151a21`.
+- `--warning` и статусные цвета затемнены до контраста ≥ 4.5:1 на soft-фоне.
+- Тёмные `-soft` статусы приглушены (без кислотных заливок).
+- `--font` без `Inter` — честный системный стек.
+- `h1` 20 px, `h2` 16, `h3` 14; глобальный `:focus-visible`, `::selection`,
+  `prefers-reduced-motion`.
+
+### Осталось перевести на токены
+- Кнопки/поля/чипы/бейджи в `app.css` (Этап 4).
+- Inline-стили в `OrdersPage`, `DashboardPage`, `NewOrderModal` (Этап 5).
+- Брейкпоинты 1280/1024/768/375 и мобильное меню (Этап 4, оболочка).
+
+### Проверка
+`npm run typecheck` — чисто; `npm run build --workspace @masterskaya/web` — успешно.
+
+## Этап 4 — Базовые компоненты
+
+### Проход 1. Button + Input/Search (готово)
+`styles/app.css`: `.btn` — высота 32 px, единые hover/active/focus-visible/disabled
+и `[aria-busy]`; `.primary/.danger/.ghost/.sm/.icon`. `.search-box` — 32 px,
+hover и focus-ring. Поля `.field` — 32 px, `--radius-sm`, hover/focus/disabled,
+`[aria-invalid='true']` с красной рамкой и красным focus-ring.
+Сборка web — успешно.
+
+### Проход 2. Badge/Status + Table (готово)
+`.badge` — радиус 4 px вместо pill, 22 px, токены. `.chip` — 28 px, радиус 6 px,
+hover/active/focus-visible, активный на акценте. `table.data` — 13 px, заголовок
+12 px, паддинги по токенам, hover строки, `:focus-within`; `.row-link` больше
+не окрашивает весь список в акцент — только при hover.
+
+### Проход 3. Modal + EmptyState + Toast (готово)
+`.overlay` — `--backdrop`, `--z-overlay`, отступы по токенам. `.modal` — flex-колонка,
+шапка/подвал не скроллятся, скроллится только `.modal-body`, радиус 12 px,
+тень `--shadow-lg`, подвал на `--bg-subtle`. `.empty` — отступы, иконка 28 px,
+`--text-*`, `.empty-action` вместо inline-стиля. `.toast` — токены, `--z-toast`,
+`role="status"/"alert"` в компоненте. Добавлен токен `--on-solid`.
+
+### Проход 4. Оболочка (готово)
+- `Layout.tsx`: навигация разбита на группы «Работа / Учёт / Система»;
+  мобильное меню получило подложку `.sidebar-backdrop`, закрытие по клику вне
+  и по Esc; `aria-expanded/controls/label`, эмодзи скрыты от скринридеров;
+  просроченные задачи — класс `.nav-item-badge.danger` вместо inline-стиля.
+- `app.css`: сайдбар и топбар на токенах, эмодзи-иконки приведены к 14 px и
+  обесцвечены (активный пункт — цветной), группы меню, брейкпоинты
+  1023/767/479 вместо 900/520, контент ограничен `--content-max` 1440 px,
+  мобильная модалка — на весь экран, тосты — по ширине экрана.
+Сборка web и typecheck — успешно.
+
+## Этап 5 — Экраны
+
+### Проход 1. Dashboard (готово)
+- Файлы: `pages/DashboardPage.tsx`, `features/tasks/TaskWidget.tsx`,
+  `features/finance/TodayPanel.tsx`, `styles/app.css`.
+- Иерархия выстроена: KPI за период → «Сегодня» (полная ширина) → сетка
+  2:1 «Заказы по этапам + Что сделать сегодня» → «Готовы к выдаче» и
+  «Выданные заказы». Inline-стили убраны: `.dash-grid`, `.panel-head-note`,
+  `.table-wrap.flush`, `.today-kpis` (4 колонки внутри дневной панели).
+- KPI: 3 колонки на ≥1280, 2 на планшете, 1 на 375; числа `tabular-nums`.
+- Состояния: loading «Загрузка заказов…», error через `EmptyState`,
+  пустой этап со своей подписью; колонки «Телефон» и «Принят» скрыты
+  на ≤1023 (`col-phone`, `col-accepted`), таблица этапов больше не скроллится
+  по горизонтали на планшете.
+
+### Проход 2. Orders + форма приёма заказа (готово)
+- `pages/OrdersPage.tsx`: чипы-фильтры перерисованы токенами; поиск уехал в
+  `.toolbar` с классом `.search-box` (не inline) и счётчиком «Найдено: N»;
+  loading/error — через `.panel-loading` и `EmptyState`; таблица: «Принят» и
+  «Телефон» скрыты на планшете, действия в строке переведены на тихие
+  `btn sm ghost` и `btn sm ghost danger` (`.btn.ghost.danger` добавлен в CSS);
+  `/orders?new=1` теперь реально открывает приём заказа (раньше параметр
+  игнорировался — кнопка с дашборда вела в никуда).
+- `features/orders/NewOrderModal.tsx`: `role="dialog"`, `aria-modal`,
+  `aria-labelledby`, закрытие по Esc, автофокус на «Клиент»; ошибки сумм —
+  inline через `aria-invalid` + `aria-describedby` (`.field .error`) вместо
+  тоста, звёздочка обязательного поля через `.req`; submit в состоянии
+  `aria-busy` с подписью «Принимаем…»; «К доплате» — `.field-echo`; у
+  себестоимости и суммы появились подсказки. Без изменений в payload и API.
+- Проверено в браузере (800 px, тёмная тема): модалка, автофокус, звёздочка,
+  эхо-сумма; таблица без горизонтального скролла.
+- Сборка web и typecheck — успешно.
+
+### Проход 3. OrderCard (готово)
+- `pages/OrderCardPage.tsx`: loading «Загрузка заказа…», «Заказ не найден» с
+  подсказкой и кнопкой «Назад»; заголовок `.card-title` (номер + бейдж в ряд);
+  вкладки получили `role="tablist"/"tab"` и `aria-selected`; журнал — классы
+  `.event-*` вместо inline; кнопки актов без эмодзи и с подписью «Создаём…»;
+  «Акт работ/Приёмный акт» в шапке без картинок.
+- `features/orders`: `StatusTransition` и `NotifyButtons` на `.btn-row` +
+  тихие `btn ghost`; переходы по статусу с `aria-busy`; `CreateDocumentButton`
+  показывает `aria-busy` и подпись при мутации.
+- `features/orders/OrderTab.tsx`: чекбокс «Обновить имя клиента» —
+  `.field-check` без inline; «К доплате» — `.field-echo`; кнопки статуса —
+  `.status-actions` (grid).
+- CSS: `.card-title`, `.head-action`, `.btn-row`, `.event-*`, `.field-check`,
+  `.status-actions`.
+- Проверено в браузере (800 px): карточка, вкладки, статусы, без переполнений.
+- Сборка web и typecheck — успешно.
+
+### Проход 4. Finance (готово)
+- `pages/FinancePage.tsx`: фильтры дат — `.toolbar` с `.field-inline`
+  (метки «С/По» в строке), чипы «Все/Расходы/Доходы» прижаты вправо через
+  `.toolbar-end`; панель «Расходы по категориям» — `.stat-row` +
+  `.stat-amount` вместо inline, отключён `marginBottom: 16` (utility `.mb-4`);
+  «Движение денег»: знаковые суммы через `table.data td.pos/.neg` (inline-цвета
+  убраны), колонки «Комментарий/Клиент/Расходники/Прибыль» скрыты на планшете
+  (`col-note/col-client/col-supplies/col-profit`), действия в строке —
+  тихие `btn sm ghost` и `btn sm ghost danger`.
+- `features/finance/PaymentForm.tsx`: панель без эмодзи, ошибки сумм
+  inline (`aria-invalid` + `.error`), звёздочка `.req`, submit `aria-busy`
+  с «Записываем…»; после успеха форма очищается вместе с ошибкой.
+- `features/finance/EditPaymentModal.tsx`: модальный паттерн как в
+  NewOrderModal — `role="dialog"`, `aria-modal`, `aria-labelledby`, Esc,
+  автофокус на сумму, inline-ошибка суммы, «Сохраняем…» при мутации.
+- `features/finance/TodayPanel.tsx`: цвет прибыли в таблице — класс
+  `pos/.neg` вместо inline.
+- CSS: `.field-inline`, `.toolbar .chips`, `.toolbar-end`, `.mb-4`,
+  `.stat-row`/`.stat-amount`, `td.pos/.neg`, скрытие finance-колонок ≤1023.
+- Проверено в браузере (800 px, тёмная тема): сводка, форма, категории,
+  таблица без скролла и inline-цветов; модалка «Изменить запись» открывается,
+  звёздочка и паттерн на месте.
+- Сборка web и typecheck — успешно.
+
+### Проход 5. Tasks (готово)
+- `pages/TasksPage.tsx`: кнопка «Новая задача» без ＋; loading
+  «Загрузка задач…» и error через `EmptyState` раньше пустого состояния;
+  в hint пустого состояния ссылка на кнопку без ＋; алерт просрочки —
+  `role="status"`, эмодзи в `aria-hidden`-span.
+- `features/tasks/TaskList.tsx`: заголовок задачи — настоящая кнопка
+  (клик с клавиатуры), CSS-сброс облика для `.task-title-editable`;
+  чекбокс и все икон-кнопки получили `aria-label` (☎, →, ✎, ✕);
+  действия — тихие `btn sm ghost`, удаление `ghost danger`.
+- `features/tasks/NewTaskModal.tsx`: модальный паттерн (dialog/aria/Esc/
+  автофокус), inline-ошибки «выберите заказ» и «что сделать» вместо тостов,
+  `.req`, chips поиска и шаблонов без inline `marginBottom`, иконки шаблонов
+  убраны — только текст, `aria-busy` + «Создаём…».
+- `features/tasks/EditTaskModal.tsx`: тот же паттерн, автофокус на текст,
+  inline-ошибка текста, ошибка мутации тоже inline, «Сохраняем…».
+- Проверено в браузере (800 px, тёмная тема): страница, алерт просрочки,
+  модалка «Новая задача» (автофокус, звёздочки, чипы-шаблоны).
+- Сборка web и typecheck — успешно.
+
+### Проход 6. Documents (готово)
+- `pages/DocumentsPage.tsx`: чипы-фильтры в `.toolbar`, счётчик
+  «Найдено: N» в шапке; loading «Загрузка актов…», error через `EmptyState`
+  раньше пустого состояния; колонки «Клиент» и «Создан» скрыты на планшете
+  (те же классы `col-client`/`col-accepted`); «Открыть» — `btn sm ghost`.
+- Проверено в браузере (800 px): фильтры, счётчик, таблица без скролла.
+- Сборка web и typecheck — успешно.
+
+### Проход 7. Settings (готово)
+- `pages/SettingsPage.tsx`: все inline-стили заменены классами —
+  `.panel-intro` (вводные абзацы), `.update-status`/`.update-meta`/
+  `.update-note(.available)` (блок обновления), `.diag-actions`
+  («Скопировать отчёт»), `.backup-import`; эмодзи убраны из кнопок
+  («Скачать все данные (JSON)»); кнопки «Проверить обновления /
+  Обновить отчёт / Установить» получили `aria-busy` и подписи
+  «Проверяем… / Собираем… / Обновляем…»; диагностическое предупреждение
+  о старой сборке — `role="status"`.
+- CSS: `.panel-intro`, `.update-*`, `.diag-actions`, `.backup-import`.
+- Проверено в браузере (800 px, тёмная тема): все 5 панелей,
+  inline-стилей в контенте нет, эмодзи в кнопках нет.
+- Сборка web и typecheck — успешно.
+
+## Этап 6 — Финал
+
+### Чек-лист доступности
+- Все кнопки имеют текст или `aria-label` (икон-кнопки ☎/→/✎/✕,
+  «Удалить» в строках заказа — с номером заказа).
+- Все поля форм обёрнуты в `<label>` или имеют `aria-label`/placeholder;
+  обязательные поля — `.req` + `aria-required`.
+- Ошибки форм inline: `aria-invalid` + `aria-describedby` вместо тостов
+  (NewOrderModal, PaymentForm, EditPaymentModal, New/EditTaskModal).
+- Модалки: `role="dialog"`, `aria-modal`, `aria-labelledby`, закрытие по Esc,
+  автофокус на первое поле.
+- Таблицы: второстепенные колонки скрыты на планшете; знаковые суммы
+  цветом `pos/.neg`; числа `tabular-nums`; row-link и ghost-действия.
+- Алерты (`task-alert`, diag-warn) — `role="status"`, эмодзи в `aria-hidden`.
+- Tab-вкладки карточки заказа — `role="tablist"/"tab"` + `aria-selected`.
+- Исправлено в финале: у `.btn` и всех форм-контролов шрифт наследуется
+  `font-family: inherit` (раньше Times вместо системного).
+
+### Проверка
+- `npm run typecheck` — зелёный (web + весь монорепо).
+- `npm test` — 57/57 зелёных (включая финансовые формулы из
+  `packages/shared/src/finance.ts` — не тронуты).
+- `npm run build` — зелёный (web + api).
+- `apps/web/src/print/**` не изменялся.
+- Все 7 экранов проверены живьём в браузере (800 px, тёмная тема):
+  Dashboard, Orders (+модалка приёма), OrderCard, Finance (+форма и
+  модалка записи), Tasks (+модалки), Documents, Settings.
+- Ограничение проверки: окно браузера OpenCode 800×557, виды 1280/375
+  проверены косвенно через CSS-брейкпоинты и a11y-скрипты.
+

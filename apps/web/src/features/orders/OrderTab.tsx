@@ -53,17 +53,13 @@ export function OrderTab({
           </div>
 
           {order.clientId ? (
-            <label
-              className="field"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}
-            >
+            <label className="field field-check">
               <input
                 type="checkbox"
                 checked={alsoClient}
                 onChange={(event) => setAlsoClient(event.target.checked)}
-                style={{ width: 'auto', minHeight: 0 }}
               />
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              <span className="field-check-label">
                 Обновить имя во всех заказах этого клиента
               </span>
             </label>
@@ -124,7 +120,7 @@ export function OrderTab({
             </label>
             <div className="field">
               <span className="field-label">К доплате при выдаче</span>
-              <div style={{ paddingTop: 8, fontWeight: 600 }}>
+              <div className="field-echo">
                 {formatMoney(
                   Math.max(
                     Number(clientTotal.replace(',', '.') || 0) -
@@ -168,17 +164,18 @@ export function OrderTab({
             <span className="field-label">Текущий статус</span>
             <StatusBadge code={order.status} />
           </div>
-          {allowedTransitions.map((code) => (
-            <button
-              key={code}
-              type="button"
-              className="btn block"
-              style={{ marginBottom: 6 }}
-              onClick={() => onChange({ status: code })}
-            >
-              → {statusLabel(code)}
-            </button>
-          ))}
+          <div className="status-actions">
+            {allowedTransitions.map((code) => (
+              <button
+                key={code}
+                type="button"
+                className="btn block"
+                onClick={() => onChange({ status: code })}
+              >
+                → {statusLabel(code)}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     </div>

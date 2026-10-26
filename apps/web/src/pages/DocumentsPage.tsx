@@ -21,33 +21,50 @@ export function DocumentsPage() {
     <>
       <div className="page-head">
         <h1>Акты</h1>
+        {list.data ? (
+          <span className="panel-head-note">Найдено: {list.data.items.length}</span>
+        ) : null}
       </div>
 
-      <div className="chips">
-        <button
-          type="button"
-          className={`chip ${kind === '' ? 'active' : ''}`}
-          onClick={() => setKind('')}
-        >
-          Все
-        </button>
-        <button
-          type="button"
-          className={`chip ${kind === 'acceptance' ? 'active' : ''}`}
-          onClick={() => setKind('acceptance')}
-        >
-          Приёмные акты
-        </button>
-        <button
-          type="button"
-          className={`chip ${kind === 'works' ? 'active' : ''}`}
-          onClick={() => setKind('works')}
-        >
-          Акты выполненных работ
-        </button>
+      <div className="toolbar">
+        <div className="chips">
+          <button
+            type="button"
+            className={`chip ${kind === '' ? 'active' : ''}`}
+            onClick={() => setKind('')}
+          >
+            Все
+          </button>
+          <button
+            type="button"
+            className={`chip ${kind === 'acceptance' ? 'active' : ''}`}
+            onClick={() => setKind('acceptance')}
+          >
+            Приёмные акты
+          </button>
+          <button
+            type="button"
+            className={`chip ${kind === 'works' ? 'active' : ''}`}
+            onClick={() => setKind('works')}
+          >
+            Акты выполненных работ
+          </button>
+        </div>
       </div>
 
-      {(list.data?.items.length ?? 0) === 0 ? (
+      {list.isLoading ? (
+        <div className="panel">
+          <div className="panel-loading">Загрузка актов…</div>
+        </div>
+      ) : list.isError ? (
+        <div className="panel">
+          <EmptyState
+            icon="⚠️"
+            title="Не удалось загрузить акты"
+            hint="Проверьте соединение и обновите страницу"
+          />
+        </div>
+      ) : (list.data?.items.length ?? 0) === 0 ? (
         <div className="panel">
           <EmptyState
             icon="📄"
@@ -63,10 +80,10 @@ export function DocumentsPage() {
                 <th>Номер</th>
                 <th>Вид</th>
                 <th>Заказ</th>
-                <th>Клиент</th>
+                <th className="col-client">Клиент</th>
                 <th>Устройство</th>
                 <th className="num">Сумма</th>
-                <th>Создан</th>
+                <th className="col-accepted">Создан</th>
                 <th />
               </tr>
             </thead>
@@ -82,14 +99,14 @@ export function DocumentsPage() {
                       №{document.orderNumber}
                     </Link>
                   </td>
-                  <td>{document.clientName ?? '—'}</td>
+                  <td className="col-client">{document.clientName ?? '—'}</td>
                   <td>{document.deviceLabel ?? '—'}</td>
                   <td className="num">{formatMoney(document.clientTotal ?? 0)}</td>
-                  <td className="nowrap">{formatDateTime(document.issuedAt)}</td>
+                  <td className="nowrap col-accepted">{formatDateTime(document.issuedAt)}</td>
                   <td>
                     <div className="row-actions">
                       <Link
-                        className="btn sm"
+                        className="btn sm ghost"
                         to={`/orders/${document.orderId}/print/${document.kind}`}
                       >
                         Открыть

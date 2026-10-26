@@ -20,6 +20,7 @@ export function PaymentForm() {
   const [category, setCategory] = useState('');
   const [occurredOn, setOccurredOn] = useState(() => todayIso());
   const [note, setNote] = useState('');
+  const [amountError, setAmountError] = useState('');
 
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -49,6 +50,7 @@ export function PaymentForm() {
       setAmount('');
       setCost('');
       setNote('');
+      setAmountError('');
       void queryClient.invalidateQueries({ queryKey: ['finance-payments'] });
       void queryClient.invalidateQueries({ queryKey: ['finance-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['finance-today'] });
@@ -60,15 +62,16 @@ export function PaymentForm() {
     event.preventDefault();
     const value = Number(amount.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
-      toast.show('Укажите сумму больше нуля', 'error');
+      setAmountError('Укажите сумму больше нуля — обязательное поле');
       return;
     }
     const costValue = Number(cost.replace(',', '.'));
     const cleanCost = direction === 'in' && Number.isFinite(costValue) && costValue > 0 ? costValue : 0;
     if (cleanCost > value) {
-      toast.show('Расходники не могут быть больше суммы дохода', 'error');
+      setAmountError('Расходники не могут быть больше суммы дохода');
       return;
     }
+    setAmountError('');
     create.mutate({
       direction,
       amount: value,
@@ -81,10 +84,10 @@ export function PaymentForm() {
   };
 
   return (
-    <section className="panel" style={{ marginBottom: 16 }}>
-      <div className="panel-head">＋ Записать доход или расход</div>
+    <section className="panel mb-4">
+      <div className="panel-head">Записать доход или расход</div>
       <div className="panel-body">
-        <form onSubmit={submit}>
+        <form onSubmit={submit} aria-label="Форма записи дохода или расхода">
           <div className="form-grid">
             <label className="field">
               <span className="field-label">Тип</span>
@@ -97,15 +100,29 @@ export function PaymentForm() {
               </select>
             </label>
             <label className="field">
-              <span className="field-label">Сумма *</span>
+              <span className="field-label">
+                Сумма <span className="req">*</span>
+              </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
+                inputMode="decimal"
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(event) => {
+                  setAmount(event.target.value);
+                  if (amountError) setAmountError('');
+                }}
                 placeholder="50"
+                aria-required="true"
+                aria-invalid={amountError ? true : undefined}
+                aria-describedby={amountError ? 'payment-amount-error' : undefined}
               />
+              {amountError ? (
+                <span className="error" id="payment-amount-error">
+                  {amountError}
+                </span>
+              ) : null}
             </label>
             {direction === 'in' ? (
               <label className="field">
@@ -162,8 +179,13 @@ export function PaymentForm() {
           </p>
 
           <div className="form-actions">
-            <button type="submit" className="btn primary" disabled={create.isPending}>
-              Добавить
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={create.isPending}
+              aria-busy={create.isPending || undefined}
+            >
+              {create.isPending ? 'Записываем…' : 'Добавить'}
             </button>
           </div>
         </form>

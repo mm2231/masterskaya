@@ -13,10 +13,12 @@ export function EmptyState({
 }) {
   return (
     <div className="empty">
-      <div className="empty-icon">{icon}</div>
+      <div className="empty-icon" aria-hidden="true">
+        {icon}
+      </div>
       <div className="empty-title">{title}</div>
       {hint ? <div className="empty-hint">{hint}</div> : null}
-      {action ? <div style={{ marginTop: 14 }}>{action}</div> : null}
+      {action ? <div className="empty-action">{action}</div> : null}
     </div>
   );
 }

@@ -17,13 +17,26 @@ interface NavEntry {
   taskCount?: boolean;
 }
 
-const NAV: NavEntry[] = [
-  { to: '/', icon: '📊', label: 'Дашборд' },
-  { to: '/orders', icon: '🔧', label: 'Заказы', countKey: 'open' },
-  { to: '/tasks', icon: '✅', label: 'Задачи', taskCount: true },
-  { to: '/documents', icon: '📄', label: 'Акты' },
-  { to: '/finance', icon: '💰', label: 'Финансы' },
-  { to: '/settings', icon: '⚙️', label: 'Настройки' },
+const NAV_GROUPS: Array<{ title: string; items: NavEntry[] }> = [
+  {
+    title: 'Работа',
+    items: [
+      { to: '/', icon: '📊', label: 'Дашборд' },
+      { to: '/orders', icon: '🔧', label: 'Заказы', countKey: 'open' },
+      { to: '/tasks', icon: '✅', label: 'Задачи', taskCount: true },
+    ],
+  },
+  {
+    title: 'Учёт',
+    items: [
+      { to: '/documents', icon: '📄', label: 'Акты' },
+      { to: '/finance', icon: '💰', label: 'Финансы' },
+    ],
+  },
+  {
+    title: 'Система',
+    items: [{ to: '/settings', icon: '⚙️', label: 'Настройки' }],
+  },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -64,6 +77,16 @@ export function Layout() {
     setMenuOpen(false);
   }, [location.pathname]);
 
+  // Esc закрывает мобильное меню — как обычный диалог.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
+
   const openOrders =
     (counts?.counts.new ?? 0) +
     (counts?.counts.diagnostics ?? 0) +
@@ -78,41 +101,54 @@ export function Layout() {
 
   return (
     <div className="app">
-      <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
+      <aside id="sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <span>🔧</span>
+          <span aria-hidden="true">🔧</span>
           <span>Мастерская</span>
         </div>
-        <nav className="sidebar-nav">
-          {NAV.map((entry) => (
-            <NavLink
-              key={entry.to}
-              to={entry.to}
-              end={entry.to === '/'}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <span className="nav-item-icon">{entry.icon}</span>
-              <span>{entry.label}</span>
-              {entry.countKey === 'open' && openOrders > 0 ? (
-                <span className="nav-item-badge">{openOrders}</span>
-              ) : null}
-              {entry.taskCount && taskTotal > 0 ? (
-                <span
-                  className="nav-item-badge"
-                  style={
-                    (taskCounts?.overdue ?? 0) > 0
-                      ? { background: 'var(--danger)', color: '#fff' }
-                      : undefined
-                  }
+        <nav className="sidebar-nav" aria-label="Основная навигация">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title}>
+              <div className="nav-group-title">{group.title}</div>
+              {group.items.map((entry) => (
+                <NavLink
+                  key={entry.to}
+                  to={entry.to}
+                  end={entry.to === '/'}
+                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 >
-                  {taskTotal}
-                </span>
-              ) : null}
-            </NavLink>
+                  <span className="nav-item-icon" aria-hidden="true">
+                    {entry.icon}
+                  </span>
+                  <span>{entry.label}</span>
+                  {entry.countKey === 'open' && openOrders > 0 ? (
+                    <span className="nav-item-badge">{openOrders}</span>
+                  ) : null}
+                  {entry.taskCount && taskTotal > 0 ? (
+                    <span
+                      className={`nav-item-badge ${
+                        (taskCounts?.overdue ?? 0) > 0 ? 'danger' : ''
+                      }`}
+                    >
+                      {taskTotal}
+                    </span>
+                  ) : null}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-footer">Локальная база · данные только на этом компьютере</div>
       </aside>
+
+      {menuOpen ? (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Закрыть меню"
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
 
       <div className="main">
         <header className="topbar">
@@ -120,16 +156,21 @@ export function Layout() {
             type="button"
             className="btn icon ghost menu-button"
             onClick={() => setMenuOpen((value) => !value)}
-            aria-label="Меню"
+            aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={menuOpen}
+            aria-controls="sidebar"
           >
-            ☰
+            <span aria-hidden="true">☰</span>
           </button>
           <div className="topbar-title">{title}</div>
           <div className="topbar-spacer" />
           <div className="search-box">
-            <span className="search-box-icon">🔍</span>
+            <span className="search-box-icon" aria-hidden="true">
+              🔍
+            </span>
             <input
               type="search"
+              aria-label="Поиск по заказам: телефон, устройство, номер"
               placeholder="Поиск: телефон, устройство, номер заказа"
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
@@ -146,7 +187,7 @@ export function Layout() {
             title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
             aria-label="Переключить тему"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
           </button>
         </header>
 

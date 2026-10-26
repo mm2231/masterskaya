@@ -56,16 +56,16 @@ export function FinancePage() {
           className="btn"
           href={`/api/finance/export?from=${summary.data?.from ?? ''}&to=${summary.data?.to ?? ''}`}
         >
-          📊 Экспорт в Excel (CSV)
+          Экспорт в Excel (CSV)
         </a>
       </div>
 
-      <div className="page-head" style={{ marginBottom: 14 }}>
-        <label className="field" style={{ marginBottom: 0 }}>
+      <div className="toolbar">
+        <label className="field field-inline">
           <span className="field-label">С</span>
           <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
         </label>
-        <label className="field" style={{ marginBottom: 0 }}>
+        <label className="field field-inline">
           <span className="field-label">По</span>
           <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
         </label>
@@ -81,7 +81,7 @@ export function FinancePage() {
             Сбросить
           </button>
         ) : null}
-        <div className="chips" style={{ marginLeft: 'auto' }}>
+        <div className="chips toolbar-end">
           <button
             type="button"
             className={`chip ${direction === '' ? 'active' : ''}`}
@@ -140,21 +140,13 @@ export function FinancePage() {
       <PaymentForm />
 
       {summary.data?.expensesByCategory.length ? (
-        <section className="panel" style={{ marginBottom: 16 }}>
+        <section className="panel mb-4">
           <div className="panel-head">Расходы по категориям</div>
           <div className="panel-body">
             {summary.data.expensesByCategory.map((row) => (
-              <div
-                key={row.category ?? '—'}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '6px 0',
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
+              <div key={row.category ?? '—'} className="stat-row">
                 <span>{row.category ?? 'Без категории'}</span>
-                <span style={{ fontWeight: 600 }}>{formatMoney(row.amount)}</span>
+                <span className="stat-amount">{formatMoney(row.amount)}</span>
               </div>
             ))}
           </div>
@@ -174,11 +166,11 @@ export function FinancePage() {
                   <th>Дата</th>
                   <th>Тип</th>
                   <th>Категория</th>
-                  <th>Комментарий</th>
+                  <th className="col-note">Комментарий</th>
                   <th>Заказ</th>
-                  <th>Клиент</th>
-                  <th className="num">Расходники</th>
-                  <th className="num">Прибыль</th>
+                  <th className="col-client">Клиент</th>
+                  <th className="num col-supplies">Расходники</th>
+                  <th className="num col-profit">Прибыль</th>
                   <th className="num">Сумма</th>
                   <th />
                 </tr>
@@ -201,7 +193,7 @@ export function FinancePage() {
                         <span className="muted">Без категории</span>
                       )}
                     </td>
-                    <td className="payment-note">
+                    <td className="payment-note col-note">
                       {payment.note || <span className="muted">—</span>}
                     </td>
                     <td className="nowrap">
@@ -213,20 +205,12 @@ export function FinancePage() {
                         '—'
                       )}
                     </td>
-                    <td>{payment.clientName ?? '—'}</td>
-                    <td className="num">{cost ? formatMoney(cost) : '—'}</td>
-                    <td
-                      className="num"
-                      style={{ color: profit >= 0 ? 'var(--success)' : 'var(--danger)' }}
-                    >
+                    <td className="col-client">{payment.clientName ?? '—'}</td>
+                    <td className="num col-supplies">{cost ? formatMoney(cost) : '—'}</td>
+                    <td className={`num col-profit ${profit >= 0 ? 'pos' : 'neg'}`}>
                       {formatMoney(profit)}
                     </td>
-                    <td
-                      className="num"
-                      style={{
-                        color: payment.direction === 'in' ? 'var(--success)' : 'var(--danger)',
-                      }}
-                    >
+                    <td className={`num ${payment.direction === 'in' ? 'pos' : 'neg'}`}>
                       {payment.direction === 'in' ? '+' : '−'}
                       {formatMoney(payment.amount)}
                     </td>
@@ -234,7 +218,7 @@ export function FinancePage() {
                       <div className="row-actions">
                         <button
                           type="button"
-                          className="btn sm"
+                          className="btn sm ghost"
                           onClick={() => setEditing(payment)}
                           title="Изменить запись"
                         >
@@ -242,7 +226,7 @@ export function FinancePage() {
                         </button>
                         <button
                           type="button"
-                          className="btn sm danger"
+                          className="btn sm ghost danger"
                           onClick={() => {
                             if (window.confirm('Удалить запись?')) remove.mutate(payment.id);
                           }}

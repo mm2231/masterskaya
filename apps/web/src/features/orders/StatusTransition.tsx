@@ -43,13 +43,14 @@ export function StatusTransition({
   if (visible.length === 0) return null;
 
   return (
-    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+    <span className="btn-row">
       {visible.map((code) => (
         <button
           key={code}
           type="button"
-          className="btn sm"
+          className="btn sm ghost"
           disabled={change.isPending}
+          aria-busy={change.isPending || undefined}
           onClick={() => change.mutate(code)}
           title={`Перевести в «${statusLabel(code)}»`}
         >

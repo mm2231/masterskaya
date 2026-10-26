@@ -32,7 +32,7 @@ export function TasksPage() {
       <div className="page-head">
         <h1>Задачи</h1>
         <button type="button" className="btn primary" onClick={() => setNewOpen(true)}>
-          ＋ Новая задача
+          Новая задача
         </button>
       </div>
 
@@ -54,18 +54,27 @@ export function TasksPage() {
       </div>
 
       {scope === 'open' && (tasks.data?.counts.overdue ?? 0) > 0 ? (
-        <div className="task-alert">
-          ⚠️ Просроченных задач: {tasks.data?.counts.overdue} — их срок уже прошёл
+        <div className="task-alert" role="status">
+          <span aria-hidden="true">⚠️</span> Просроченных задач: {tasks.data?.counts.overdue} —
+          их срок уже прошёл
         </div>
       ) : null}
 
       <section className="panel">
         <div className="panel-body">
-          {items.length === 0 ? (
+          {tasks.isLoading ? (
+            <div className="panel-loading">Загрузка задач…</div>
+          ) : tasks.isError ? (
+            <EmptyState
+              icon="⚠️"
+              title="Не удалось загрузить задачи"
+              hint="Проверьте соединение и обновите страницу"
+            />
+          ) : items.length === 0 ? (
             <EmptyState
               icon="✅"
               title={scope === 'open' ? 'Открытых задач нет' : 'Выполненных задач нет'}
-              hint="Задачи создаются в карточке заказа или кнопкой «＋ Новая задача»"
+              hint="Задачи создаются в карточке заказа или кнопкой «Новая задача»"
             />
           ) : (
             <TaskList tasks={items} />

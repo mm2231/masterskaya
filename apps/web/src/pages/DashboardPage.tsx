@@ -55,6 +55,8 @@ export function DashboardPage() {
   const s = summary.data?.summary;
   const allOpen = open.data?.items ?? [];
   const items = stage ? allOpen.filter((order) => order.status === stage) : allOpen;
+  const readyOrders = allOpen.filter((order) => order.status === 'ready');
+  const recentIssued = issued.data?.items.slice(0, 5) ?? [];
 
   // Сколько заказов на каждом этапе.
   const byStage = (code: string) => allOpen.filter((order) => order.status === code).length;
@@ -67,10 +69,6 @@ export function DashboardPage() {
           ＋ Принять заказ
         </Link>
       </div>
-
-      <TaskWidget />
-
-      <TodayPanel />
 
       <div className="kpi-grid">
         <div className="kpi">
@@ -109,14 +107,14 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <TodayPanel />
 
-      <section className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-head">
-          🔧 Заказы по этапам
-          <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--text-muted)' }}>
-            нажмите «→ этап», чтобы перевести заказ
-          </span>
-        </div>
+      <div className="dash-grid">
+        <section className="panel">
+          <div className="panel-head">
+            <span>Заказы по этапам</span>
+            <span className="panel-head-note">нажмите «→ этап», чтобы перевести заказ</span>
+          </div>
         <div className="panel-body">
           <div className="chips">
             <button
@@ -140,24 +138,32 @@ export function DashboardPage() {
             ))}
           </div>
 
-          {items.length === 0 ? (
+          {open.isLoading ? (
+            <div className="panel-loading">Загрузка заказов…</div>
+          ) : open.isError ? (
+            <EmptyState
+              icon="⚠️"
+              title="Не удалось загрузить заказы"
+              hint="Проверьте соединение и обновите страницу"
+            />
+          ) : items.length === 0 ? (
             <EmptyState
               icon="🔧"
               title={stage ? `На этапе «${statusLabel(stage)}» заказов нет` : 'Незакрытых заказов нет'}
               hint="Принятые заказы появятся здесь автоматически"
             />
           ) : (
-            <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+            <div className="table-wrap flush">
               <table className="data">
                 <thead>
                   <tr>
                     <th>№</th>
                     <th>Устройство</th>
                     <th>Клиент</th>
-                    <th>Телефон</th>
+                    <th className="col-phone">Телефон</th>
                     <th>Этап</th>
                     <th className="num">Сумма</th>
-                    <th>Принят</th>
+                    <th className="col-accepted">Принят</th>
                     <th>Перевести</th>
                   </tr>
                 </thead>
@@ -171,12 +177,12 @@ export function DashboardPage() {
                       </td>
                       <td className="nowrap">{order.deviceLabel ?? '—'}</td>
                       <td>{order.clientName ?? '—'}</td>
-                      <td className="nowrap">{formatPhone(order.clientPhone)}</td>
+                      <td className="nowrap col-phone">{formatPhone(order.clientPhone)}</td>
                       <td>
                         <StatusBadge code={order.status} />
                       </td>
                       <td className="num">{formatMoney(order.clientTotal)}</td>
-                      <td className="nowrap">{formatDateTime(order.acceptedAt)}</td>
+                      <td className="nowrap col-accepted">{formatDateTime(order.acceptedAt)}</td>
                       <td>
                         <StatusTransition orderId={order.id} status={order.status} compact />
                       </td>
@@ -189,18 +195,24 @@ export function DashboardPage() {
         </div>
       </section>
 
+        <TaskWidget />
+      </div>
+
       <div className="split-even">
         <section className="panel">
-          <div className="panel-head">✅ Готовы к выдаче</div>
-          <ReadyTable orders={allOpen.filter((order) => order.status === 'ready')} />
+          <div className="panel-head">
+            <span>Готовы к выдаче</span>
+            <span className="panel-head-note">{readyOrders.length}</span>
+          </div>
+          <ReadyTable orders={readyOrders} />
         </section>
 
         <section className="panel">
-          <div className="panel-head">🛒 Выданные заказы</div>
-          <OrderMiniTable
-            orders={issued.data?.items.slice(0, 5) ?? []}
-            emptyText="Выданных заказов нет"
-          />
+          <div className="panel-head">
+            <span>Выданные заказы</span>
+            <span className="panel-head-note">последние {recentIssued.length}</span>
+          </div>
+          <OrderMiniTable orders={recentIssued} emptyText="Выданных заказов нет" />
         </section>
       </div>
     </>
@@ -228,7 +240,7 @@ function ReadyTable({ orders }: { orders: Order[] }) {
     return <EmptyState icon="✅" title="Готовых заказов нет" />;
   }
   return (
-    <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+    <div className="table-wrap flush">
       <table className="data">
         <tbody>
           {orders.map((order) => (
@@ -264,7 +276,7 @@ function OrderMiniTable({ orders, emptyText }: { orders: Order[]; emptyText: str
     return <EmptyState icon="📋" title={emptyText} />;
   }
   return (
-    <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+    <div className="table-wrap flush">
       <table className="data">
         <tbody>
           {orders.map((order) => (

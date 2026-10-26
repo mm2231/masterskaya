@@ -64,17 +64,19 @@ export function TaskList({
               type="checkbox"
               checked={task.done}
               onChange={(event) => toggle.mutate({ id: task.id, done: event.target.checked })}
+              aria-label={task.done ? `Снять отметку: ${task.title}` : `Отметить выполненной: ${task.title}`}
               title={task.done ? 'Снять отметку' : 'Задача выполнена'}
             />
 
             <div className="task-body">
-              <div
+              <button
+                type="button"
                 className="task-title task-title-editable"
                 onClick={() => setEditing(task)}
                 title="Изменить задачу"
               >
                 {task.title}
-              </div>
+              </button>
               {showOrder && order ? (
                 <div className="task-meta">
                   <Link className="row-link" to={`/orders/${order.id}`}>
@@ -92,30 +94,42 @@ export function TaskList({
               </span>
               <div className="task-actions">
                 {phone ? (
-                  <a className="btn sm" href={`tel:${phone}`} title="Позвонить клиенту">
-                    📞
+                  <a
+                    className="btn sm ghost"
+                    href={`tel:${phone}`}
+                    title="Позвонить клиенту"
+                    aria-label="Позвонить клиенту"
+                  >
+                    ☎
                   </a>
                 ) : null}
                 {showOrder && order ? (
-                  <Link className="btn sm" to={`/orders/${order.id}`} title="Открыть заказ">
+                  <Link
+                    className="btn sm ghost"
+                    to={`/orders/${order.id}`}
+                    title="Открыть заказ"
+                    aria-label="Открыть заказ"
+                  >
                     →
                   </Link>
                 ) : null}
                 <button
                   type="button"
-                  className="btn sm"
+                  className="btn sm ghost"
                   onClick={() => setEditing(task)}
                   title="Изменить задачу"
+                  aria-label="Изменить задачу"
                 >
                   ✎
                 </button>
                 <button
                   type="button"
-                  className="btn sm danger"
+                  className="btn sm ghost danger"
                   onClick={() => {
                     if (window.confirm('Удалить задачу?')) remove.mutate(task.id);
                   }}
                   title="Удалить задачу"
+                  aria-label={`Удалить задачу: ${task.title}`}
                 >
                   ✕
                 </button>

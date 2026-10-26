@@ -5,11 +5,10 @@
  * дату и время, а при сохранении собираем обратно.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TASK_TEMPLATES } from '@masterskaya/shared';
 
-import { useToast } from '../../components/Toast';
 import { api } from '../../lib/api';
 import type { Task } from '../../lib/types';
 
@@ -27,38 +26,56 @@ export function EditTaskModal({ task, onClose }: { task: Task; onClose: () => vo
   const initial = splitDue(task.dueAt);
   const [due, setDue] = useState(initial.due);
   const [time, setTime] = useState(initial.time);
+  const [titleError, setTitleError] = useState('');
 
-  const toast = useToast();
   const queryClient = useQueryClient();
 
   const save = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
       api.patch(`/api/tasks/${task.id}`, payload),
     onSuccess: () => {
-      toast.show('Задача обновлена', 'success');
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['task-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['order', task.orderId] });
       onClose();
     },
-    onError: (error: Error) => toast.show(error.message, 'error'),
+    onError: (error: Error) => setTitleError(error.message),
   });
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!title.trim()) {
-      toast.show('Напишите, что нужно сделать', 'error');
+      setTitleError('Напишите, что нужно сделать — обязательное поле');
       return;
     }
+    setTitleError('');
     // Пустой срок — задача без срока; иначе дата и время вместе.
     const dueAt = due ? (time ? `${due}T${time}` : due) : '';
     save.mutate({ title: title.trim(), dueAt });
   };
 
+  // Esc закрывает модалку, как диалог.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="overlay" onClick={onClose}>
-      <form className="modal" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">Изменить задачу</div>
+      <form
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-task-title"
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head" id="edit-task-title">
+          Изменить задачу
+        </div>
         <div className="modal-body">
           {task.order ? (
             <div className="field">
@@ -73,15 +90,29 @@ export function EditTaskModal({ task, onClose }: { task: Task; onClose: () => vo
           ) : null}
 
           <label className="field">
-            <span className="field-label">Что нужно сделать *</span>
+            <span className="field-label">
+              Что нужно сделать <span className="req">*</span>
+            </span>
             <input
+              autoFocus
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (titleError) setTitleError('');
+              }}
               placeholder="Позвонить клиенту"
+              aria-required="true"
+              aria-invalid={titleError ? true : undefined}
+              aria-describedby={titleError ? 'edit-task-title-error' : undefined}
             />
+            {titleError ? (
+              <span className="error" id="edit-task-title-error">
+                {titleError}
+              </span>
+            ) : null}
           </label>
 
-          <div className="chips" style={{ marginBottom: 12 }}>
+          <div className="chips">
             {TASK_TEMPLATES.map((template) => (
               <button
                 key={template.title}
@@ -89,7 +120,7 @@ export function EditTaskModal({ task, onClose }: { task: Task; onClose: () => vo
                 className={`chip ${title === template.title ? 'active' : ''}`}
                 onClick={() => setTitle(template.title)}
               >
-                {template.icon} {template.title}
+                {template.title}
               </button>
             ))}
           </div>
@@ -123,8 +154,13 @@ export function EditTaskModal({ task, onClose }: { task: Task; onClose: () => vo
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" className="btn primary" disabled={save.isPending}>
-            {save.isPending ? 'Сохраняю…' : 'Сохранить'}
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={save.isPending}
+            aria-busy={save.isPending || undefined}
+          >
+            {save.isPending ? 'Сохраняем…' : 'Сохранить'}
           </button>
         </div>
       </form>

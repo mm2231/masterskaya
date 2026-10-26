@@ -35,7 +35,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       {items.map((item) => (
-        <div key={item.id} className={`toast ${item.kind}`}>
+        <div
+          key={item.id}
+          className={`toast ${item.kind}`}
+          role={item.kind === 'error' ? 'alert' : 'status'}
+        >
           {item.text}
         </div>
       ))}

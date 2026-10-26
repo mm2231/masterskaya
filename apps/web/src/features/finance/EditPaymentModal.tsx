@@ -5,7 +5,7 @@
  * дописывают — поэтому запись можно изменить в любой момент.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '../../components/Toast';
@@ -30,6 +30,7 @@ export function EditPaymentModal({
   const [category, setCategory] = useState(payment.category ?? '');
   const [occurredOn, setOccurredOn] = useState(payment.occurredOn);
   const [note, setNote] = useState(payment.note ?? '');
+  const [amountError, setAmountError] = useState('');
 
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -56,9 +57,10 @@ export function EditPaymentModal({
     event.preventDefault();
     const value = Number(amount.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
-      toast.show('Укажите сумму больше нуля', 'error');
+      setAmountError('Укажите сумму больше нуля — обязательное поле');
       return;
     }
+    setAmountError('');
     save.mutate({
       amount: value,
       category,
@@ -69,23 +71,54 @@ export function EditPaymentModal({
     });
   };
 
+  // Esc закрывает модалку, как диалог.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="overlay" onClick={onClose}>
-      <form className="modal" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">
+      <form
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-payment-title"
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head" id="edit-payment-title">
           Изменить запись · {payment.direction === 'in' ? 'Доход' : 'Расход'}
         </div>
         <div className="modal-body">
           <div className="form-grid">
             <label className="field">
-              <span className="field-label">Сумма *</span>
+              <span className="field-label">
+                Сумма <span className="req">*</span>
+              </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
+                inputMode="decimal"
+                autoFocus
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(event) => {
+                  setAmount(event.target.value);
+                  if (amountError) setAmountError('');
+                }}
+                aria-required="true"
+                aria-invalid={amountError ? true : undefined}
+                aria-describedby={amountError ? 'edit-payment-amount-error' : undefined}
               />
+              {amountError ? (
+                <span className="error" id="edit-payment-amount-error">
+                  {amountError}
+                </span>
+              ) : null}
             </label>
             <label className="field">
               <span className="field-label">Дата</span>
@@ -138,8 +171,13 @@ export function EditPaymentModal({
           <button type="button" className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" className="btn primary" disabled={save.isPending}>
-            {save.isPending ? 'Сохраняю…' : 'Сохранить'}
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={save.isPending}
+            aria-busy={save.isPending || undefined}
+          >
+            {save.isPending ? 'Сохраняем…' : 'Сохранить'}
           </button>
         </div>
       </form>

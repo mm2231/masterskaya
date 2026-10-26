@@ -24,23 +24,23 @@ export function NotifyButtons({ orderId }: { orderId: number }) {
   const links = notify.data?.links;
 
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+    <div className="btn-row">
       <button type="button" className="btn sm" onClick={load} disabled={notify.isFetching}>
-        🔔 Напомнить клиенту
+        Напомнить клиенту
       </button>
       {links?.sms ? (
-        <a className="btn sm" href={links.sms} title={notify.data?.text}>
-          💬 SMS
+        <a className="btn sm ghost" href={links.sms} title={notify.data?.text}>
+          SMS
         </a>
       ) : null}
       {links?.telegram ? (
-        <a className="btn sm" href={links.telegram} title={notify.data?.text}>
-          ✈️ Telegram
+        <a className="btn sm ghost" href={links.telegram} title={notify.data?.text}>
+          Telegram
         </a>
       ) : null}
       {links?.viber ? (
-        <a className="btn sm" href={links.viber} title={notify.data?.text}>
-          📞 Viber
+        <a className="btn sm ghost" href={links.viber} title={notify.data?.text}>
+          Viber
         </a>
       ) : null}
     </div>

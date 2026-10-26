@@ -29,10 +29,10 @@ export function TaskWidget() {
   const later = all.filter((task) => !task.overdue && !task.isToday);
 
   return (
-    <section className="panel" style={{ marginBottom: 16 }}>
+    <section className="panel">
       <div className="panel-head">
-        ✅ Что сделать сегодня
-        <span style={{ marginLeft: 'auto', fontWeight: 400, color: 'var(--text-muted)' }}>
+        <span>Что сделать сегодня</span>
+        <span className="panel-head-note">
           просрочено: {tasks.data?.counts.overdue ?? 0} · на сегодня:{' '}
           {tasks.data?.counts.today ?? 0}
         </span>
