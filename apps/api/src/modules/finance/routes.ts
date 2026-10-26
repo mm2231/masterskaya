@@ -58,6 +58,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         costTotal: order.costTotal,
         prepayment: order.prepayment,
         prepaymentAt: order.prepaymentAt,
+        prepaymentCost: order.prepaymentCost,
       })),
       {
         manualIncome,
@@ -109,6 +110,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         costTotal: order.costTotal,
         prepayment: order.prepayment,
         prepaymentAt: order.prepaymentAt,
+        prepaymentCost: order.prepaymentCost,
       })),
       {
         manualIncome,
@@ -295,7 +297,12 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
       const revenue = prepaidElsewhere
         ? Number(order.clientTotal) - prepayment
         : Number(order.clientTotal);
-      const cost = prepaidElsewhere ? 0 : Number(order.costTotal);
+      // Из затрат в текущем периоде идёт только разница: снимок
+      // себестоимости уже учтён в периоде предоплаты (докупка
+      // запчастей после приёма доходит до периода выдачи).
+      const cost = prepaidElsewhere
+        ? Number(order.costTotal) - Number(order.prepaymentCost ?? 0)
+        : Number(order.costTotal);
       rows.push([
         (order.issuedAt ?? '').slice(0, 10),
         prepaidElsewhere
@@ -317,7 +324,7 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
         (item.prepaymentAt ?? '').slice(0, 10),
         'Предоплата (заказ не выдан)',
         money(Number(item.prepayment)),
-        money(cost),
+        money(Number(item.prepaymentCost ?? item.costTotal ?? 0)),
         money(Number(item.prepayment) - cost),
         '',
         item.number,

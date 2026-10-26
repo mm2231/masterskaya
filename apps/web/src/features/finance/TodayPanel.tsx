@@ -10,9 +10,18 @@ import { useQuery } from '@tanstack/react-query';
 
 import { EmptyState } from '../../components/EmptyState';
 import { api } from '../../lib/api';
+import { buildDayReportRows, type DayReportRow } from '../../lib/dayReport';
 import { formatDate, formatMoney, formatPhone, formatTime } from '../../lib/format';
 import type { TodayData } from '../../lib/types';
 import { DayReportActions } from './DayReportActions';
+
+/** Название типа движения для панели «Движения дня». */
+const KIND_LABEL: Record<DayReportRow['kind'], string> = {
+  issued: 'Заказ',
+  manual: 'Без акта',
+  expense: 'Расход',
+  prepayment: 'Предоплата',
+};
 
 export function TodayPanel() {
   const today = useQuery({
@@ -108,7 +117,48 @@ export function TodayPanel() {
             </table>
           </div>
         )}
+
+        {/* Остальные движения дня: предоплаты, услуги без актов, расходы.
+            Выданные заказы уже в таблице выше — их не дублируем. */}
+        {(today.data ? buildDayReportRows(today.data) : []).filter(
+          (row) => row.kind !== 'issued',
+        ).length > 0 && <MovementsTable data={today.data!} />}
       </div>
     </section>
+  );
+}
+
+/** Движения дня кроме выданных заказов: предоплаты, «без актов», расходы. */
+function MovementsTable({ data }: { data: TodayData }) {
+  const rows = buildDayReportRows(data).filter((row) => row.kind !== 'issued');
+  return (
+    <div className="table-wrap flush mt-3">
+      <table className="data">
+        <thead>
+          <tr>
+            <th>Тип</th>
+            <th>Клиент / Устройство</th>
+            <th>Описание</th>
+            <th className="num">Затраты</th>
+            <th className="num">Сумма</th>
+            <th className="num">Прибыль</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              <td className="nowrap">{KIND_LABEL[row.kind]}</td>
+              <td className="nowrap">{row.client}</td>
+              <td>{row.work || row.note}</td>
+              <td className="num">{row.cost === null ? '' : formatMoney(row.cost)}</td>
+              <td className="num">{row.revenue === null ? '' : formatMoney(row.revenue)}</td>
+              <td className={`num ${(row.profit ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                {row.profit === null ? '' : formatMoney(row.profit)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

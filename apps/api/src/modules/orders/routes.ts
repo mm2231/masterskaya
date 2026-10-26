@@ -116,6 +116,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         // Дата предоплаты — момент оформления: по ней деньги попадают
         // в доход нужного периода, даже если заказ ещё не выдан.
         prepaymentAt: data.prepayment > 0 ? nowSql() : null,
+        // Снимок себестоимости: затраты могут вырасти до выдачи
+        // (докупка запчастей), тогда в период выдачи уйдёт только
+        // разница, а себестоимость не посчитается дважды.
+        prepaymentCost: data.prepayment > 0 ? data.costTotal : null,
       });
       logEvent(db(), created.id, 'created', `Заказ ${number} создан`, {
         status: created.status,
@@ -186,8 +190,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (prepaymentChanged) {
       if (Number(data.prepayment) > 0) {
         data.prepaymentAt = current.order.prepaymentAt ?? nowSql();
+        // Снимок себестоимости — только при первом внесении предоплаты:
+        // сумма предоплаты меняется, но затраты уже учтены на дату
+        // первоначальной предоплаты и снимок не переносится.
+        if (current.order.prepaymentAt) {
+          data.prepaymentCost = current.order.prepaymentCost ?? current.order.costTotal;
+        } else {
+          data.prepaymentCost = data.costTotal ?? current.order.costTotal;
+        }
       } else {
         data.prepaymentAt = null;
+        data.prepaymentCost = null;
       }
     }
 

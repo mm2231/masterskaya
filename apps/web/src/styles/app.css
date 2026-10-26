@@ -263,6 +263,11 @@ textarea {
   margin-bottom: var(--space-4);
 }
 
+/* Подборка таблиц: движение дня под списком выданных заказов. */
+.mt-3 {
+  margin-top: var(--space-3);
+}
+
 /* Вводный абзац внутри панели (muted, прижат к шапке). */
 .panel-intro {
   margin: 0 0 var(--space-3);

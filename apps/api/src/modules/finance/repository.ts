@@ -225,6 +225,7 @@ export async function prepaymentsListInPeriod(
       prepayment: orders.prepayment,
       prepaymentAt: orders.prepaymentAt,
       costTotal: orders.costTotal,
+      prepaymentCost: orders.prepaymentCost,
       workDescription: orders.workDescription,
       status: orders.status,
     })
@@ -296,6 +297,7 @@ export async function issuedOnDay(database: AppDatabase, day: string) {
       costTotal: orders.costTotal,
       prepayment: orders.prepayment,
       prepaymentAt: orders.prepaymentAt,
+      prepaymentCost: orders.prepaymentCost,
       issuedAt: orders.issuedAt,
       workDescription: orders.workDescription,
     })

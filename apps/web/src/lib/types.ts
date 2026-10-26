@@ -200,6 +200,7 @@ export interface TodayOrder {
   costTotal: number;
   prepayment?: number | null;
   prepaymentAt?: string | null;
+  prepaymentCost?: number | null;
   profit: number;
   issuedAt: string | null;
   workDescription: string | null;
@@ -213,6 +214,8 @@ export interface TodayPrepayment {
   prepayment: number;
   prepaymentAt: string | null;
   costTotal?: number;
+  /** Снимок себестоимости на момент предоплаты. */
+  prepaymentCost?: number | null;
   workDescription?: string | null;
   status: string;
 }

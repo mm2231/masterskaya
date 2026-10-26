@@ -22,6 +22,13 @@
       "when": 1792951488524,
       "tag": "0002_elite_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793037981970,
+      "tag": "0003_slim_speedball",
+      "breakpoints": true
     }
   ]
 }

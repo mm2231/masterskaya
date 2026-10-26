@@ -82,6 +82,15 @@ export const orders = sqliteTable(
     prepayment: real('prepayment').notNull().default(0),
     /** Когда внесена предоплата — по этой дате она попадает в доход периода. */
     prepaymentAt: text('prepayment_at'),
+    /**
+     * Себестоимость на момент предоплаты — снимок для учёта.
+     *
+     * Затраты могут расти после приёма (докупили запчасти). Снимок
+     * фиксирует, сколько уже учтено в периоде предоплаты; при выдаче
+     * в текущий период уходит только разница (costTotal − снимок) —
+     * рубль и себестоимость учитываются ровно один раз.
+     */
+    prepaymentCost: real('prepayment_cost'),
     acceptedAt: text('accepted_at').notNull().default(sql`(datetime('now'))`),
     promisedAt: text('promised_at'),
     readyAt: text('ready_at'),

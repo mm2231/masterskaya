@@ -15,6 +15,8 @@ import type { TodayData } from './types';
 
 /** Строка отчёта дня — одна ячейка таблицы Google. */
 export interface DayReportRow {
+  /** Тип строки: выданный заказ, услуги/продажи, расход, предоплата. */
+  kind: 'issued' | 'manual' | 'expense' | 'prepayment';
   /** ДД.ММ.ГГГГ */
   date: string;
   /** Клиент / Устройство */
@@ -54,6 +56,9 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
   //    уже учтена в таблице ранее — сейчас получена только доплата).
   for (const order of data.orders) {
     const prepayment = Number(order.prepayment ?? 0);
+    const clientParts = [order.deviceLabel || null, order.clientName]
+      .filter(Boolean)
+      .join(' · ');
     const prepaidElsewhere =
       prepayment > 0 &&
       !!order.prepaymentAt &&
@@ -61,11 +66,14 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
     const revenue = prepaidElsewhere
       ? Number(order.clientTotal) - prepayment
       : Number(order.clientTotal);
-    const cost = prepaidElsewhere ? 0 : Number(order.costTotal);
-    const clientParts = [order.deviceLabel || null, order.clientName]
-      .filter(Boolean)
-      .join(' · ');
+    // В затраты ранее учтённого периода закладывали снимок (сколько
+    // стоил заказ на дату предоплаты) — сейчас идёт только разница
+    // (докупка запчастей), иначе себестоимость посчитается дважды.
+    const cost = prepaidElsewhere
+      ? Number(order.costTotal) - Number(order.prepaymentCost ?? 0)
+      : Number(order.costTotal);
     rows.push({
+      kind: 'issued',
       date: day,
       client: clientParts || '—',
       work: order.workDescription?.trim() || 'ремонт',
@@ -83,6 +91,7 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
     const amount = Number(payment.amount);
     const cost = Number(payment.cost ?? 0);
     rows.push({
+      kind: 'manual',
       date: day,
       client: payment.category || 'Услуги',
       work: payment.note?.trim() || 'услуги',
@@ -99,6 +108,7 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
     if (payment.direction !== 'out') continue;
     const amount = Number(payment.amount);
     rows.push({
+      kind: 'expense',
       date: day,
       client: payment.category || 'Расходы',
       work: '',
@@ -122,12 +132,17 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
       .filter(Boolean)
       .join(' · ');
     rows.push({
+      kind: 'prepayment',
       date: day,
       client: clientParts || 'Предоплата',
       work: item.workDescription?.trim() || 'предоплата',
-      cost: cost,
+      // Затраты — снимок на дату предоплаты: расходники уже куплены,
+      // иначе прибыль обманывает («80 без затрат» вместо 80 − 50).
+      // После выдачи пойдёт только доплата с разницей затрат — двойного
+      // счёта нет при докупленых запчастях.
+      cost: Number(item.prepaymentCost ?? item.costTotal ?? 0),
       revenue: prepayment,
-      profit: prepayment - cost,
+      profit: prepayment - Number(item.prepaymentCost ?? item.costTotal ?? 0),
       status: STATUS_PREPAYMENT,
       note: `Предоплата по заказу №${item.number}, не выдан`,
     });

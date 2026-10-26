@@ -243,6 +243,8 @@ export function createOrder(
     /** Предоплата: сразу идёт в доход. */
     prepayment?: number;
     prepaymentAt?: string | null;
+    /** Снимок себестоимости на момент предоплаты. */
+    prepaymentCost?: number | null;
     promisedAt?: string | null;
     notes?: string | null;
     warrantyMonths?: number;
@@ -265,6 +267,7 @@ export function createOrder(
       costTotal: data.costTotal,
       prepayment: data.prepayment ?? 0,
       prepaymentAt: data.prepaymentAt ?? null,
+      prepaymentCost: data.prepaymentCost ?? null,
       promisedAt: data.promisedAt || null,
       notes: data.notes ?? null,
       warrantyMonths: data.warrantyMonths ?? 0,

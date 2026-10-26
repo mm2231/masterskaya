@@ -6,7 +6,6 @@
  * структуру таблицы пользователя, копируются без заголовков.
  */
 
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import { useToast } from '../../components/Toast';
@@ -49,13 +48,15 @@ export function DayReportActions() {
       >
         Копировать в таблицу
       </button>
-      <Link
+      <a
         className="btn sm"
-        aria-label="Открыть отчёт за день для печати и сохранения в PDF"
-        to="/print/day"
+        aria-label="Открыть отчёт за день в новой вкладке — для печати и сохранения в PDF"
+        href="/print/day"
+        target="_blank"
+        rel="noopener noreferrer"
       >
         Отчёт за день (PDF)
-      </Link>
+      </a>
     </div>
   );
 }

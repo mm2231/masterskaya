@@ -84,6 +84,14 @@ export interface PeriodOrderAmounts extends OrderAmounts {
   prepayment?: number;
   /** Дата предоплаты: по ней видно, в каком периоде её учли. */
   prepaymentAt?: string | null;
+  /**
+   * Снимок себестоимости на момент предоплаты.
+   *
+   * Затраты могут вырасти после приёма (докупка запчастей). Тогда в
+   * период выдачи уходит только разница (costTotal − снимок): сама
+   * снимок-часть уже учтена там, где внесена предоплата.
+   */
+  prepaymentCost?: number | null;
 }
 
 /** Предоплата по не выданному заказу внутри периода. */
@@ -146,9 +154,11 @@ export function summarize(
       (dayOf(order.prepaymentAt) < options.from || dayOf(order.prepaymentAt) > options.to);
 
     if (paidElsewhere) {
-      // Предоплата со своей себестоимостью учтена в прежнем периоде —
-      // сейчас получена только доплата.
+      // Предоплата со своей себестоимостью-снимком учтена в прежнем
+      // периоде — сейчас получена только доплата, а из затрат уходит
+      // лишь разница (докупка запчастей после приёма).
       summary.revenue += toNumber(order.clientTotal) - prepayment;
+      summary.cost += toNumber(order.costTotal) - toNumber(order.prepaymentCost);
     } else {
       summary.revenue += toNumber(order.clientTotal);
       summary.cost += toNumber(order.costTotal);
