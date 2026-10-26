@@ -111,8 +111,13 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
   }
 
   // 4. Предоплаты дня: заказ ещё не выдан, деньги уже в кассе.
+  //    Затраты (ЗЧ) уже понесены — расходники куплены, иначе прибыль
+  //    обманывает: «80 без затрат» вместо честных 80 − 50. Когда заказ
+  //    выдадут, в лист пойдёт только доплата (у неё затрат 0) — рубль
+  //    и себестоимость считаются ровно один раз.
   for (const item of data.prepayments ?? []) {
     const prepayment = Number(item.prepayment);
+    const cost = Number(item.costTotal ?? 0);
     const clientParts = [item.deviceLabel || null, item.clientName]
       .filter(Boolean)
       .join(' · ');
@@ -120,9 +125,9 @@ export function buildDayReportRows(data: TodayData): DayReportRow[] {
       date: day,
       client: clientParts || 'Предоплата',
       work: item.workDescription?.trim() || 'предоплата',
-      cost: null,
+      cost: cost,
       revenue: prepayment,
-      profit: prepayment,
+      profit: prepayment - cost,
       status: STATUS_PREPAYMENT,
       note: `Предоплата по заказу №${item.number}, не выдан`,
     });
