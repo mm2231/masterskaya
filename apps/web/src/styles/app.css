@@ -1446,6 +1446,22 @@ table.data .nowrap {
     grid-template-columns: 1fr;
   }
 
+  /* Кнопки отчёта дня в шапке панели: не влезают в строку с заголовком
+     и счётчиком — переносятся на отдельную строку. */
+  .panel-head {
+    flex-wrap: wrap;
+  }
+
+  .panel-head .row-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .panel-head .row-actions .btn {
+    flex: 1 1 auto;
+  }
+
   .page-head + .chips,
   .content > div[style*='grid-template-columns'] {
     grid-template-columns: 1fr !important;
