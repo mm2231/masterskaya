@@ -360,6 +360,62 @@ textarea {
 .ready-scroll {
   max-height: 195px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * «Заказы по этапам»: показываются верхние 10 строк (вся незакрытая
+ * повседневная работа), остальное — под прокруткой, а не бесконечным
+ * столбцом. Итог и ссылка на полную вкладку — в foot-строке панели.
+ */
+.stage-scroll {
+  max-height: 390px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Строка-нога панели: «Показаны N из M — все во вкладке Заказы». */
+.stage-foot {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.stage-foot a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.stage-foot a:hover {
+  text-decoration: underline;
+}
+
+/* Кнопка дозагрузки списка заказов в панели. */
+button.load-more {
+  display: block;
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.load-more:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+button.load-more:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }
 
 @media (max-width: 479px) {
@@ -925,6 +981,30 @@ table.data .nowrap {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-primary);
+}
+
+/*
+ * Симметричные чипы статуса («Все этапы», «Диагностика», «Готов»…):
+ * одинаковая ширина у всех плиток ряда — узор ровный, без «рваных»
+ * краёв, даже когда подписи и счётчики разной длины. Длинная подпись
+ * обрезается, число в счётчике сохраняем.
+ */
+.chip-equal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.chip-equal .chip {
+  flex: 0 0 148px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Формы ───────────────────────────────────────────────────────────── */

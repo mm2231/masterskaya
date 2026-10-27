@@ -34,13 +34,21 @@ export function DashboardPage() {
     queryFn: () => api.get<FinanceSummary>('/api/finance/summary'),
   });
 
-  // Все незакрытые заказы — одним запросом.
+  // Все незакрытые заказы — одним запросом. Лимит 200 — потолок API:
+  // остаток показывается в ноге панели со ссылкой на вкладку «Заказы».
   const open = useQuery({
     queryKey: ['dashboard', 'open'],
     queryFn: () =>
       api.get<{ items: Order[]; total: number }>(
-        '/api/orders' + query({ statuses: OPEN_STATUSES.join(','), limit: 100 }),
+        '/api/orders' + query({ statuses: OPEN_STATUSES.join(','), limit: 200 }),
       ),
+  });
+
+  // Точные счётчики этапов — из БД, а не из загруженной страницы:
+  // при большом запасе заказов чипы не «врут».
+  const countsQuery = useQuery({
+    queryKey: ['order-counts'],
+    queryFn: () => api.get<{ counts: Record<string, number> }>('/api/orders/counts'),
   });
 
   // Выданные заказы — недавние, для контроля потока.
@@ -54,12 +62,15 @@ export function DashboardPage() {
 
   const s = summary.data?.summary;
   const allOpen = open.data?.items ?? [];
+  const openTotal = open.data?.total ?? 0;
   const items = stage ? allOpen.filter((order) => order.status === stage) : allOpen;
   const readyOrders = allOpen.filter((order) => order.status === 'ready');
   const recentIssued = issued.data?.items.slice(0, 5) ?? [];
 
-  // Сколько заказов на каждом этапе.
-  const byStage = (code: string) => allOpen.filter((order) => order.status === code).length;
+  // Счётчики этапов из базы: точные, даже если список подрезан лимитом.
+  const counts = countsQuery.data?.counts ?? {};
+  const totalOpen = OPEN_STATUSES.reduce((sum, code) => sum + (counts[code] ?? 0), 0);
+  const byStage = (code: string) => counts[code] ?? 0;
 
   return (
     <>
@@ -102,7 +113,7 @@ export function DashboardPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Открытых заказов</div>
-          <div className="kpi-value">{allOpen.length}</div>
+          <div className="kpi-value">{countsQuery.isSuccess ? totalOpen : allOpen.length}</div>
           <div className="kpi-hint">принято, но ещё не выдано</div>
         </div>
       </div>
@@ -116,13 +127,13 @@ export function DashboardPage() {
             <span className="panel-head-note">нажмите «→ этап», чтобы перевести заказ</span>
           </div>
         <div className="panel-body">
-          <div className="chips">
+          <div className="chips chip-equal">
             <button
               type="button"
               className={`chip ${stage === '' ? 'active' : ''}`}
               onClick={() => setStage('')}
             >
-              Все этапы ({allOpen.length})
+              Все этапы ({countsQuery.isSuccess ? totalOpen : allOpen.length})
             </button>
             {ORDER_STATUSES.filter(
               (item) => item.code !== 'issued' && item.code !== 'declined',
@@ -153,7 +164,7 @@ export function DashboardPage() {
               hint="Принятые заказы появятся здесь автоматически"
             />
           ) : (
-            <div className="table-wrap flush">
+            <div className="table-wrap flush stage-scroll">
               <table className="data">
                 <thead>
                   <tr>
@@ -197,6 +208,24 @@ export function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {items.length > 0 && (
+            <div className="stage-foot">
+              <span>
+                {stage
+                  ? `На этапе «${statusLabel(stage)}»: ${byStage(stage)}`
+                  : `Показаны ${items.length} из ${openTotal}`}
+                {!stage && openTotal > items.length ? (
+                  <> —{' '}
+                    <Link to="/orders">все во вкладке «Заказы»</Link>
+                  </>
+                ) : stage ? (
+                  <> —{' '}
+                    <Link to={`/orders?status=${stage}`}>все во вкладке «Заказы»</Link>
+                  </>
+                ) : null}
+              </span>
             </div>
           )}
         </div>

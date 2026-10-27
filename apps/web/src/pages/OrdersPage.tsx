@@ -1,7 +1,7 @@
 /** Список заказов: поиск, фильтры по статусу, таблица в стиле CRM. */
 
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ORDER_STATUSES, orderProfitAtStage } from '@masterskaya/shared';
 
 import { EmptyState } from '../components/EmptyState';
@@ -24,10 +24,24 @@ export function OrdersPage() {
   const status = params.get('status') ?? '';
   const search = params.get('q') ?? '';
 
-  const list = useQuery({
+  // Постраничная дозагрузка: очередь не растёт в одну бесконечную
+  // страницу — показываем по 100 заказов, остальное по кнопке
+  // «Показать ещё». total приходит из БД, поиск учитывается.
+  const list = useInfiniteQuery({
     queryKey: ['orders', status, search],
-    queryFn: () => api.get<OrderListResponse>('/api/orders' + query({ status, q: search, limit: 100 })),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      api.get<OrderListResponse>(
+        '/api/orders' + query({ status, q: search, limit: 100, offset: pageParam }),
+      ),
+    getNextPageParam: (last, pages) => {
+      const shown = pages.reduce((sum, page) => sum + page.items.length, 0);
+      return shown < last.total ? shown : undefined;
+    },
   });
+
+  const orders = list.data?.pages.flatMap((page) => page.items) ?? [];
+  const total = list.data?.pages[0]?.total ?? 0;
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -45,7 +59,7 @@ export function OrdersPage() {
     onError: (error: Error) => toast.show(error.message, 'error'),
   });
 
-  const counts = list.data?.counts ?? {};
+  const counts = list.data?.pages[0]?.counts ?? {};
   const totalOpen = ORDER_STATUSES.filter(
     (item) => item.code !== 'issued' && item.code !== 'declined',
   ).reduce((sum, item) => sum + (counts[item.code] ?? 0), 0);
@@ -59,7 +73,7 @@ export function OrdersPage() {
         </button>
       </div>
 
-      <div className="chips">
+      <div className="chips chip-equal">
         <button
           type="button"
           className={`chip ${status === '' ? 'active' : ''}`}
@@ -93,7 +107,7 @@ export function OrdersPage() {
           />
         </div>
         {list.data ? (
-          <span className="panel-head-note">Найдено: {list.data.items.length}</span>
+          <span className="panel-head-note">Найдено: {total}</span>
         ) : null}
       </div>
 
@@ -109,7 +123,7 @@ export function OrdersPage() {
             hint="Проверьте соединение и обновите страницу"
           />
         </div>
-      ) : (list.data?.items.length ?? 0) === 0 ? (
+      ) : orders.length === 0 ? (
         <div className="panel">
           <EmptyState
             icon="🔧"
@@ -140,13 +154,25 @@ export function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {list.data?.items.map((order) => (
+              {orders.map((order) => (
                 <OrderRow key={order.id} order={order} onDelete={() => remove.mutate(order.id)} />
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {list.hasNextPage ? (
+        <button
+          type="button"
+          className="load-more"
+          disabled={list.isFetchingNextPage}
+          onClick={() => list.fetchNextPage()}
+        >
+          {list.isFetchingNextPage
+            ? 'Загрузка…'
+            : `Показать ещё ${Math.min(100, total - orders.length)} заказов`}
+        </button>
+      ) : null}
 
       {newOpen ? (
         <NewOrderModal
