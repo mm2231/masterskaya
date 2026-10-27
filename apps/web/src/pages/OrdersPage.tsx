@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';import { u
 import { ORDER_STATUSES, orderProfitAtStage } from '@masterskaya/shared';
 
 import { EmptyState } from '../components/EmptyState';
+import { EqualChips } from '../components/EqualChips';
 import { StatusBadge } from '../components/StatusBadge';
 import { useToast } from '../components/Toast';
 import { api, query } from '../lib/api';
@@ -73,7 +74,7 @@ export function OrdersPage() {
         </button>
       </div>
 
-      <div className="chips chip-equal">
+      <EqualChips>
         <button
           type="button"
           className={`chip ${status === '' ? 'active' : ''}`}
@@ -91,7 +92,7 @@ export function OrdersPage() {
             {item.label} ({counts[item.code] ?? 0})
           </button>
         ))}
-      </div>
+      </EqualChips>
 
       <div className="toolbar">
         <div className="search-box">

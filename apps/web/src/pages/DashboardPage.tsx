@@ -17,6 +17,7 @@ import { useToast } from '../components/Toast';
 import { api, query } from '../lib/api';
 import { formatDateTime, formatMoney, formatPhone } from '../lib/format';
 import type { FinanceSummary, Order } from '../lib/types';
+import { EqualChips } from '../components/EqualChips';
 import { StatusTransition } from '../features/orders/StatusTransition';
 import { TodayPanel } from '../features/finance/TodayPanel';
 
@@ -127,7 +128,7 @@ export function DashboardPage() {
             <span className="panel-head-note">нажмите «→ этап», чтобы перевести заказ</span>
           </div>
         <div className="panel-body">
-          <div className="chips chip-equal">
+          <EqualChips>
             <button
               type="button"
               className={`chip ${stage === '' ? 'active' : ''}`}
@@ -147,7 +148,7 @@ export function DashboardPage() {
                 {item.label} ({byStage(item.code)})
               </button>
             ))}
-          </div>
+          </EqualChips>
 
           {open.isLoading ? (
             <div className="panel-loading">Загрузка заказов…</div>

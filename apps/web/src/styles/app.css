@@ -999,19 +999,16 @@ table.data .nowrap {
 }
 
 .chip-equal .chip {
-  /* Два жёстких ограничения: чип = ровно 148px в любом движке,
-     длинная подпись обрезается, не растягивая плитку. */
-  flex: 0 0 148px;
-  width: 148px;
-  max-width: 148px;
+  /* Ширину задаёт компонент EqualChips замером текста из серии;
+     здесь только правила видимости поверхностей. */
+  width: var(--chip-w, 148px);
   min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
+  font-size: var(--chip-fs, var(--text-sm));
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ── Формы ───────────────────────────────────────────────────────────── */
