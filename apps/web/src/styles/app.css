@@ -222,6 +222,10 @@ textarea {
 .main {
   display: flex;
   flex-direction: column;
+  /* Занимает всё место справа от рейки/шторки: без этого страницы
+     с узким содержимым (акты, задачи) садятся по ширине контента,
+     а не во всю ширину окна. */
+  flex: 1;
   min-width: 0;
   height: 100%;
 }
@@ -360,7 +364,6 @@ textarea {
 .ready-scroll {
   max-height: 195px;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 /*
@@ -371,7 +374,6 @@ textarea {
 .stage-scroll {
   max-height: 390px;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 /* Строка-нога панели: «Показаны N из M — все во вкладке Заказы». */
@@ -997,7 +999,12 @@ table.data .nowrap {
 }
 
 .chip-equal .chip {
+  /* Два жёстких ограничения: чип = ровно 148px в любом движке,
+     длинная подпись обрезается, не растягивая плитку. */
   flex: 0 0 148px;
+  width: 148px;
+  max-width: 148px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
