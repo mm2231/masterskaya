@@ -227,6 +227,7 @@ export function DashboardPage() {
 /** Готовые к выдаче: главное действие — выдать заказ (статус → «Выдан»). */
 function ReadyTable({ orders }: { orders: Order[] }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const issue = useMutation({
@@ -245,11 +246,20 @@ function ReadyTable({ orders }: { orders: Order[] }) {
     return <EmptyState icon="✅" title="Готовых заказов нет" />;
   }
   return (
-    <div className="table-wrap flush">
+    /* Прокрутка: видно 5 последних, остальные под скроллом — панель
+       остаётся вровень с соседней «Выданные заказы». */
+    <div className="table-wrap flush ready-scroll">
       <table className="data">
         <tbody>
           {orders.map((order) => (
-            <tr key={order.id}>
+            <tr
+              key={order.id}
+              className="row-clickable"
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest('button, a, .btn-row')) return;
+                navigate(`/orders/${order.id}`);
+              }}
+            >
               <td className="nowrap">
                 <Link className="row-link" to={`/orders/${order.id}`}>
                   №{order.number}
@@ -277,6 +287,7 @@ function ReadyTable({ orders }: { orders: Order[] }) {
 }
 
 function OrderMiniTable({ orders, emptyText }: { orders: Order[]; emptyText: string }) {
+  const navigate = useNavigate();
   if (orders.length === 0) {
     return <EmptyState icon="📋" title={emptyText} />;
   }
@@ -285,7 +296,14 @@ function OrderMiniTable({ orders, emptyText }: { orders: Order[]; emptyText: str
       <table className="data">
         <tbody>
           {orders.map((order) => (
-            <tr key={order.id}>
+            <tr
+              key={order.id}
+              className="row-clickable"
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest('button, a, .btn-row')) return;
+                navigate(`/orders/${order.id}`);
+              }}
+            >
               <td className="nowrap">
                 <Link className="row-link" to={`/orders/${order.id}`}>
                   №{order.number}

@@ -40,7 +40,7 @@ textarea {
   }
 
   .sidebar:hover,
-  .sidebar:focus-within {
+  .sidebar:has(:focus-visible) {
     width: var(--sidebar-width);
   }
 
@@ -52,7 +52,7 @@ textarea {
   }
 
   .sidebar:hover .revealable,
-  .sidebar:focus-within .revealable {
+  .sidebar:has(:focus-visible) .revealable {
     opacity: 1;
     transition: opacity 0.18s ease 0.1s;
   }
@@ -65,8 +65,8 @@ textarea {
 
   .sidebar:hover .nav-group-title,
   .sidebar:hover .sidebar-footer,
-  .sidebar:focus-within .nav-group-title,
-  .sidebar:focus-within .sidebar-footer {
+  .sidebar:has(:focus-visible) .nav-group-title,
+  .sidebar:has(:focus-visible) .sidebar-footer {
     opacity: 1;
     transition: opacity 0.18s ease 0.1s;
   }
@@ -75,11 +75,21 @@ textarea {
   .sidebar-brand {
     justify-content: flex-start;
     white-space: nowrap;
+    padding-left: 22px;
   }
 
-  /* Пункты меню выровнены по иконке, независимо от ширины панели. */
+  /* Иконка в рейке — по центру колонки, пункт квадратный. */
   .nav-item {
     position: relative;
+    justify-content: flex-start;
+    min-height: 40px;
+    /* Центр иконки на середине 64px-рейки: (64 − 22) / 2 = 21px. */
+    padding-left: 21px;
+  }
+
+  .nav-item-icon {
+    width: 22px;
+    flex-shrink: 0;
   }
 
   .nav-item-badge {
@@ -91,7 +101,7 @@ textarea {
   }
 
   .sidebar:hover .nav-item-badge,
-  .sidebar:focus-within .nav-item-badge {
+  .sidebar:has(:focus-visible) .nav-item-badge {
     position: static;
     transform: translateY(0);
     margin-left: auto;
@@ -343,6 +353,21 @@ textarea {
   margin-top: var(--space-3);
 }
 
+/*
+ * «Готовы к выдаче»: видимая высота = 5 строк (вровень с соседней
+ * панелью «Выданные заказы»), остальные заказы под прокруткой.
+ */
+.ready-scroll {
+  max-height: 195px;
+  overflow-y: auto;
+}
+
+@media (max-width: 479px) {
+  .ready-scroll {
+    max-height: none;
+  }
+}
+
 /* Вводный абзац внутри панели (muted, прижат к шапке). */
 .panel-intro {
   margin: 0 0 var(--space-3);
@@ -579,6 +604,11 @@ tr.row-clickable:focus-visible > td {
   color: var(--primary);
   font-weight: 600;
   white-space: nowrap;
+  /* Ширина по самому длинному переходу («→ Гарантийный») —
+     столбцы кнопок в таблицах стоят ровно. */
+  min-width: 116px;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn.status-jump:hover:not(:disabled) {

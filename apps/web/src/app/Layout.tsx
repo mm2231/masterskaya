@@ -6,10 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
 import { useTheme } from './useTheme';
+import { Icon, type IconName } from '../components/Icon';
 
 interface NavEntry {
   to: string;
-  icon: string;
+  icon: IconName;
   label: string;
   /** Показывать счётчик заказов в этом статусе. */
   countKey?: 'open';
@@ -21,21 +22,21 @@ const NAV_GROUPS: Array<{ title: string; items: NavEntry[] }> = [
   {
     title: 'Работа',
     items: [
-      { to: '/', icon: '📊', label: 'Дашборд' },
-      { to: '/orders', icon: '🔧', label: 'Заказы', countKey: 'open' },
-      { to: '/tasks', icon: '✅', label: 'Задачи', taskCount: true },
+      { to: '/', icon: 'dashboard', label: 'Дашборд' },
+      { to: '/orders', icon: 'orders', label: 'Заказы', countKey: 'open' },
+      { to: '/tasks', icon: 'tasks', label: 'Задачи', taskCount: true },
     ],
   },
   {
     title: 'Учёт',
     items: [
-      { to: '/documents', icon: '📄', label: 'Акты' },
-      { to: '/finance', icon: '💰', label: 'Финансы' },
+      { to: '/documents', icon: 'documents', label: 'Акты' },
+      { to: '/finance', icon: 'finance', label: 'Финансы' },
     ],
   },
   {
     title: 'Система',
-    items: [{ to: '/settings', icon: '⚙️', label: 'Настройки' }],
+    items: [{ to: '/settings', icon: 'settings', label: 'Настройки' }],
   },
 ];
 
@@ -103,13 +104,13 @@ export function Layout() {
     <div className="app">
       <aside id="sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <span aria-hidden="true">🔧</span>
+          <Icon name="wrench" size={20} />
           <span className="revealable">Мастерская</span>
         </div>
         <nav className="sidebar-nav" aria-label="Основная навигация">
           {NAV_GROUPS.map((group) => (
             <div key={group.title}>
-              <div className="nav-group-title">{group.title}</div>
+              <div className="nav-group-title revealable">{group.title}</div>
               {group.items.map((entry) => (
                 <NavLink
                   key={entry.to}
@@ -118,7 +119,7 @@ export function Layout() {
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 >
                   <span className="nav-item-icon" aria-hidden="true">
-                    {entry.icon}
+                    <Icon name={entry.icon} size={22} />
                   </span>
                   <span className="revealable">{entry.label}</span>
                   {entry.countKey === 'open' && openOrders > 0 ? (
