@@ -6,12 +6,18 @@
  * структуру таблицы пользователя, копируются без заголовков.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { useToast } from '../../components/Toast';
 import { api } from '../../lib/api';
-import { buildDayReportRows, copyToClipboard, dayReportTsv } from '../../lib/dayReport';
-import type { TodayData } from '../../lib/types';
+import {
+  buildDayReportRows,
+  buildPeriodReportRows,
+  copyToClipboard,
+  currentMonthRange,
+  dayReportTsv,
+} from '../../lib/dayReport';
+import type { PeriodReportData, TodayData } from '../../lib/types';
 
 export function DayReportActions() {
   const toast = useToast();
@@ -20,6 +26,28 @@ export function DayReportActions() {
     queryKey: ['finance-today'],
     queryFn: () => api.get<TodayData>('/api/finance/today'),
     refetchInterval: 60_000,
+  });
+
+  // Месяц берём на лету — отдельный запрос при нажатии.
+  const month = useMutation({
+    mutationFn: () => {
+      const { from, to } = currentMonthRange();
+      return api.get<PeriodReportData>(`/api/finance/today?from=${from}&to=${to}`);
+    },
+    onSuccess: async (data) => {
+      const text = dayReportTsv(buildPeriodReportRows(data));
+      if (!text) {
+        toast.show('За месяц пока нет строк для копирования', 'error');
+        return;
+      }
+      const ok = await copyToClipboard(text);
+      if (ok) {
+        toast.show(`Скопировано строк: ${text.split('\n').length}`, 'success');
+      } else {
+        toast.show('Не удалось скопировать — выдайте разрешение на буфер', 'error');
+      }
+    },
+    onError: (error: Error) => toast.show(error.message, 'error'),
   });
 
   async function copy() {
@@ -56,6 +84,24 @@ export function DayReportActions() {
         rel="noopener noreferrer"
       >
         Отчёт за день (PDF)
+      </a>
+      <button
+        type="button"
+        className="btn sm"
+        aria-label="Скопировать строки месяца целиком для вставки в таблицу"
+        disabled={month.isPending}
+        onClick={() => month.mutate()}
+      >
+        {month.isPending ? 'Сборка строк…' : 'Копировать месяц'}
+      </button>
+      <a
+        className="btn sm"
+        aria-label="Открыть отчёт за месяц в новой вкладке — с переключением месяцев"
+        href={`/print/day?month=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Отчёт за месяц (PDF)
       </a>
     </div>
   );

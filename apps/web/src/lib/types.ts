@@ -218,6 +218,8 @@ export interface TodayPrepayment {
   prepaymentCost?: number | null;
   workDescription?: string | null;
   status: string;
+  /** Дата выдачи, если заказ уже выдан — для месячного леджера. */
+  issuedAt?: string | null;
 }
 
 /** Сводка за текущий день: выданные заказы и прибыль за день. */
@@ -236,6 +238,19 @@ export interface TodayData {
     note: string | null;
   }[];
   /** Предоплаты этого дня — по не выданным заказам. */
+  prepayments?: TodayPrepayment[];
+}
+
+/**
+ * Отчёт за период (месяц): те же строки на границах периода.
+ * Сводку фронтенд считает из строк кассового леджера — так цифры
+ * отчёта и таблицы Google совпадают по определению.
+ */
+export interface PeriodReportData {
+  from: string;
+  to: string;
+  orders: TodayOrder[];
+  payments: (TodayData['payments'][number] & { occurredOn?: string })[];
   prepayments?: TodayPrepayment[];
 }
 

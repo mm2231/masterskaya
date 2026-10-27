@@ -235,6 +235,45 @@ export async function prepaymentsListInPeriod(
     .all();
 }
 
+/**
+ * Список предоплат периода усугубленный: и по уже выданным заказам.
+ *
+ * Месячный отчёт — целостный кассовый леджер: если предоплату внесли
+ * в месяце, а заказ выдали позже в том же месяце, строка предоплаты
+ * нужна (деньги получены здесь), а строка выдачи несёт только
+ * доплату и разницу затрат. Дневной отчёт предоплаты выдаённых
+ * не показывает — там выдача сама несёт полную сумму.
+ */
+export async function prepaymentsListAllInPeriod(
+  database: AppDatabase,
+  from: string,
+  to: string,
+) {
+  return database
+    .select({
+      number: orders.number,
+      clientName: orders.clientName,
+      deviceLabel: orders.deviceLabel,
+      prepayment: orders.prepayment,
+      prepaymentAt: orders.prepaymentAt,
+      costTotal: orders.costTotal,
+      prepaymentCost: orders.prepaymentCost,
+      workDescription: orders.workDescription,
+      status: orders.status,
+      issuedAt: orders.issuedAt,
+    })
+    .from(orders)
+    .where(
+      and(
+        sql`${orders.prepayment} > 0`,
+        sql`date(${orders.prepaymentAt}) >= ${from}`,
+        sql`date(${orders.prepaymentAt}) <= ${to}`,
+      ),
+    )
+    .orderBy(desc(orders.prepaymentAt))
+    .all();
+}
+
 /** Предоплаты, внесённые за конкретный день. */
 export async function prepaymentsOnDay(
   database: AppDatabase,
@@ -284,36 +323,8 @@ export async function expensesByCategory(
     .all();
 }
 
-/** Заказы, выданные за конкретный день (по дате выдачи). */
-export async function issuedOnDay(database: AppDatabase, day: string) {
-  return database
-    .select({
-      id: orders.id,
-      number: orders.number,
-      clientName: orders.clientName,
-      clientPhone: orders.clientPhone,
-      deviceLabel: orders.deviceLabel,
-      clientTotal: orders.clientTotal,
-      costTotal: orders.costTotal,
-      prepayment: orders.prepayment,
-      prepaymentAt: orders.prepaymentAt,
-      prepaymentCost: orders.prepaymentCost,
-      issuedAt: orders.issuedAt,
-      workDescription: orders.workDescription,
-    })
-    .from(orders)
-    .where(
-      and(
-        sql`date(${orders.issuedAt}) = ${day}`,
-        eq(orders.status, 'issued'),
-      ),
-    )
-    .orderBy(desc(orders.issuedAt))
-    .all();
-}
-
-/** Оплаты, проведённые за день (приходы и расходы). */
-export async function paymentsOnDay(database: AppDatabase, day: string) {
+/** Оплаты за период (приходы и расходы) — с датой движения. */
+export async function paymentsInPeriod(database: AppDatabase, from: string, to: string) {
   return database
     .select({
       id: payments.id,
@@ -324,8 +335,14 @@ export async function paymentsOnDay(database: AppDatabase, day: string) {
       method: payments.method,
       category: payments.category,
       note: payments.note,
+      occurredOn: payments.occurredOn,
     })
     .from(payments)
-    .where(eq(payments.occurredOn, day))
+    .where(
+      and(
+        sql`${payments.occurredOn} >= ${from}`,
+        sql`${payments.occurredOn} <= ${to}`,
+      ),
+    )
     .all();
 }

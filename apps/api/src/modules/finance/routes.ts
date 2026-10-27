@@ -1,4 +1,4 @@
-/** HTTP-маршруты финансов: /api/finance… */
+/** Финансы: сводка, движения, отчёты за день и период. */
 
 import { paymentInputSchema, paymentPatchSchema, summarize, todayIso } from '@masterskaya/shared';
 import { inTransaction } from '@masterskaya/db';
@@ -12,16 +12,15 @@ import {
   deletePayment,
   expensesByCategory,
   expensesInPeriod,
-  issuedOnDay,
   listExpenseCategories,
   listPayments,
   manualCostInPeriod,
   manualIncomeInPeriod,
   orderPaid,
-  paymentsOnDay,
+  paymentsInPeriod,
   prepaymentsInPeriod,
+  prepaymentsListAllInPeriod,
   prepaymentsListInPeriod,
-  prepaymentsOnDay,
   updatePayment,
 } from './repository.js';
 
@@ -81,16 +80,29 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
    * Основа — заказы, выданные сегодня (по дате выдачи). Дополнительно
    * учитываются оплаты за сегодня: доходы без заказа и расходы.
    */
-  /** Сводка за текущий день (или день из ?date=). */
+  /** Сводка за текущий день (?date=) или отчётный период (?from=&to=). */
   app.get('/api/finance/today', async (request) => {
     const params = request.query as Record<string, string | undefined>;
-    const day =
-      params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayIso();
-    const issued = await issuedOnDay(db(), day);
-    const movements = await paymentsOnDay(db(), day);
-    const openPrepay = await prepaymentsOnDay(db(), day);
-    // Список предоплат дня — отдельные строки для отчёта/выгрузки.
-    const prepayList = await prepaymentsListInPeriod(db(), day, day);
+    const isDate = (value: string | undefined) =>
+      !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const periodFrom = isDate(params.from) ? params.from! : undefined;
+    const periodTo = isDate(params.to) ? params.to! : undefined;
+    const isPeriod = Boolean(periodFrom && periodTo);
+
+    // День: дата из запроса либо сегодня. Период: переданные границы.
+    const day = isDate(params.date) ? params.date! : todayIso();
+    const from = periodFrom ?? day;
+    const to = periodTo ?? day;
+
+    const issued = await issuedInPeriod(db(), from, to);
+    const movements = await paymentsInPeriod(db(), from, to);
+    // День: предоплаты дня без выданных. Период-отчёт — целостный
+    // леджер: предоплаты месяца включают и уже выданные заказы,
+    // строка выдачи у них несёт только доплату.
+    const prepayList = isPeriod
+      ? await prepaymentsListAllInPeriod(db(), from, to)
+      : await prepaymentsListInPeriod(db(), day, day);
+    const openPrepay = await prepaymentsInPeriod(db(), from, to);
 
     // Ручные доходы — только движения без заказа: выручка выданных заказов
     // уже учтена в issued и не должна считаться второй раз.
@@ -123,6 +135,19 @@ export async function registerFinanceRoutes(app: FastifyInstance): Promise<void>
           : [],
       },
     );
+
+    if (isPeriod) {
+      // Период-отчёт: сводку считает фронтенд из строк леджера (та же
+      // формула, что в колонках Google-таблицы), поэтому здесь только
+      // исходные строки и границы.
+      return {
+        from,
+        to,
+        orders: issued,
+        payments: movements,
+        prepayments: prepayList,
+      };
+    }
 
     return {
       date: day,
