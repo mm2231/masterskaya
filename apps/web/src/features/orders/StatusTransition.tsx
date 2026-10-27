@@ -48,10 +48,14 @@ export function StatusTransition({
         <button
           key={code}
           type="button"
-          className="btn sm ghost"
+          className="btn sm status-jump"
           disabled={change.isPending}
           aria-busy={change.isPending || undefined}
-          onClick={() => change.mutate(code)}
+          onClick={(event) => {
+            // Внутри кликабельной строки заказа: не открывать карточку.
+            event.stopPropagation();
+            change.mutate(code);
+          }}
           title={`Перевести в «${statusLabel(code)}»`}
         >
           → {statusLabel(code)}

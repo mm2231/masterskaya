@@ -104,7 +104,7 @@ export function Layout() {
       <aside id="sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <span aria-hidden="true">🔧</span>
-          <span>Мастерская</span>
+          <span className="revealable">Мастерская</span>
         </div>
         <nav className="sidebar-nav" aria-label="Основная навигация">
           {NAV_GROUPS.map((group) => (
@@ -120,7 +120,7 @@ export function Layout() {
                   <span className="nav-item-icon" aria-hidden="true">
                     {entry.icon}
                   </span>
-                  <span>{entry.label}</span>
+                  <span className="revealable">{entry.label}</span>
                   {entry.countKey === 'open' && openOrders > 0 ? (
                     <span className="nav-item-badge">{openOrders}</span>
                   ) : null}

@@ -93,8 +93,8 @@
   --focus-ring: 0 0 0 3px var(--focus-color);
 
   --sidebar-width: 232px;
+  --sidebar-rail: 64px;
   --topbar-height: 52px;
-  --content-max: 1440px;
 
   --z-topbar: 30;
   --z-sidebar: 40;

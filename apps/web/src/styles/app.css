@@ -9,12 +9,18 @@ textarea {
 }
 
 .app {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  display: flex;
   height: 100%;
 }
 
 /* ── Сайдбар ─────────────────────────────────────────────────────────── */
+
+/*
+ * Сайдбар-рейка: на десктопе сжат до иконок (~64px), раскрывается
+ * до полной ширины при наведении или фокусе с клавиатуры.
+ * Подписи выезжают сдвигом с прозрачностью — меню открывается,
+ * а не «щёлкает». На планшете/телефоне работает как drawer (см. media).
+ */
 
 .sidebar {
   display: flex;
@@ -23,6 +29,75 @@ textarea {
   border-right: 1px solid var(--border);
   overflow: hidden;
   z-index: var(--z-sidebar);
+}
+
+/* Рейка: на десктопе сжата, hover/focus раскрывает. */
+@media (min-width: 1024px) {
+  .sidebar {
+    width: var(--sidebar-rail);
+    flex-shrink: 0;
+    transition: width 0.18s ease;
+  }
+
+  .sidebar:hover,
+  .sidebar:focus-within {
+    width: var(--sidebar-width);
+  }
+
+  /* Подписи прячутся, но остаются в потоке ширины — выезжают плавно. */
+  .sidebar .revealable {
+    opacity: 0;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+
+  .sidebar:hover .revealable,
+  .sidebar:focus-within .revealable {
+    opacity: 1;
+    transition: opacity 0.18s ease 0.1s;
+  }
+
+  .nav-group-title,
+  .sidebar-footer {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .sidebar:hover .nav-group-title,
+  .sidebar:hover .sidebar-footer,
+  .sidebar:focus-within .nav-group-title,
+  .sidebar:focus-within .sidebar-footer {
+    opacity: 1;
+    transition: opacity 0.18s ease 0.1s;
+  }
+
+  /* Бренд в рейке: только иконка, раскрывается со словом. */
+  .sidebar-brand {
+    justify-content: flex-start;
+    white-space: nowrap;
+  }
+
+  /* Пункты меню выровнены по иконке, независимо от ширины панели. */
+  .nav-item {
+    position: relative;
+  }
+
+  .nav-item-badge {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    margin-left: 0;
+    transform: translateY(-50%);
+  }
+
+  .sidebar:hover .nav-item-badge,
+  .sidebar:focus-within .nav-item-badge {
+    position: static;
+    transform: translateY(0);
+    margin-left: auto;
+    right: auto;
+    top: auto;
+  }
 }
 
 .sidebar-brand {
@@ -205,8 +280,8 @@ textarea {
   flex: 1;
   overflow-y: auto;
   width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
+  /* Полная ширина окна: таблицы заказов растягиваются под экран
+     (Full HD), а не ограничиваются условной сеткой. */
   padding: var(--space-5);
 }
 
@@ -480,6 +555,47 @@ textarea {
   min-width: 0;
 }
 
+/* Кликабельная строка заказа: вся строка — вход в карточку.
+   Курсор укажет, что строка нажимается целиком. */
+tr.row-clickable {
+  cursor: pointer;
+}
+
+tr.row-clickable:hover > td {
+  background: var(--bg-hover);
+}
+
+tr.row-clickable:focus-visible > td {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* Пилюли быстрой смены статуса. Заметное действие: акцентная
+ * подложка мягкого тона, при наведении заливается акцентом —
+ * видно и в списке, и на дашборде. */
+.btn.status-jump {
+  border: 1px solid transparent;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn.status-jump:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+.btn.status-jump:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.btn.status-jump:disabled {
+  background: var(--primary-soft);
+  opacity: 0.6;
+}
+
 /* Запись журнала событий в карточке заказа. */
 .event-row {
   padding: var(--space-2) 0;
@@ -538,10 +654,10 @@ textarea {
   color: var(--text-faint);
 }
 
-/* Дашборд: этапы слева, виджеты «сегодня» и задачи справа. */
+/* Дашборд: панель этапов на всю ширину (задачи — только во вкладке). */
 .dash-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
   margin-bottom: var(--space-4);

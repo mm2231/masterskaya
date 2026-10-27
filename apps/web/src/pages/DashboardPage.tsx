@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ORDER_STATUSES, statusLabel } from '@masterskaya/shared';
 
@@ -19,7 +19,6 @@ import { formatDateTime, formatMoney, formatPhone } from '../lib/format';
 import type { FinanceSummary, Order } from '../lib/types';
 import { StatusTransition } from '../features/orders/StatusTransition';
 import { TodayPanel } from '../features/finance/TodayPanel';
-import { TaskWidget } from '../features/tasks/TaskWidget';
 
 /** Этапы, на которых заказ ещё в работе. */
 const OPEN_STATUSES = ORDER_STATUSES.filter(
@@ -27,6 +26,7 @@ const OPEN_STATUSES = ORDER_STATUSES.filter(
 ).map((item) => item.code);
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [stage, setStage] = useState('');
 
   const summary = useQuery({
@@ -169,7 +169,14 @@ export function DashboardPage() {
                 </thead>
                 <tbody>
                   {items.map((order) => (
-                    <tr key={order.id}>
+                    <tr
+                      key={order.id}
+                      className="row-clickable"
+                      onClick={(event) => {
+                        if ((event.target as HTMLElement).closest('button, a, .btn-row')) return;
+                        navigate(`/orders/${order.id}`);
+                      }}
+                    >
                       <td className="nowrap">
                         <Link className="row-link" to={`/orders/${order.id}`}>
                           №{order.number}
@@ -194,8 +201,6 @@ export function DashboardPage() {
           )}
         </div>
       </section>
-
-        <TaskWidget />
       </div>
 
       <div className="split-even">

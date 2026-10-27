@@ -1,8 +1,7 @@
 /** Список заказов: поиск, фильтры по статусу, таблица в стиле CRM. */
 
-import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ORDER_STATUSES, orderProfitAtStage } from '@masterskaya/shared';
 
 import { EmptyState } from '../components/EmptyState';
@@ -12,8 +11,10 @@ import { api, query } from '../lib/api';
 import { formatDateTime, formatMoney, formatPhone } from '../lib/format';
 import type { Order, OrderListResponse } from '../lib/types';
 import { NewOrderModal } from '../features/orders/NewOrderModal';
+import { StatusTransition } from '../features/orders/StatusTransition';
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   // Прямые ссылки вида /orders?new=1 сразу открывают приём заказа.
   const [newOpen, setNewOpen] = useState(() => params.get('new') === '1');
@@ -134,6 +135,7 @@ export function OrdersPage() {
                 <th>Статус</th>
                 <th className="num">Сумма</th>
                 <th className="num">Прибыль</th>
+                <th>Перевести</th>
                 <th />
               </tr>
             </thead>
@@ -159,6 +161,7 @@ export function OrdersPage() {
 }
 
 function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
+  const navigate = useNavigate();
   // Прибыль на текущий момент «кассой»: только полученные деньги минус
   // себестоимость. У выданного заказа — полная маржа.
   const profit = orderProfitAtStage({
@@ -167,8 +170,16 @@ function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
     paid: Number(order.prepayment ?? 0) + Number(order.paid ?? 0),
     issued: Boolean(order.issuedAt),
   });
+
+  // Клик по любой части строки открывает заказ; кнопки и ссылки внутри
+  // строки обрабатывают свои события сами (см. проверку в openOrder).
+  function openOrder(event: React.MouseEvent<HTMLTableRowElement>) {
+    if ((event.target as HTMLElement).closest('button, a, .btn-row')) return;
+    navigate(`/orders/${order.id}`);
+  }
+
   return (
-    <tr>
+    <tr className="row-clickable" onClick={openOrder}>
       <td className="nowrap">
         <Link className="row-link" to={`/orders/${order.id}`}>
           №{order.number}
@@ -186,21 +197,20 @@ function OrderRow({ order, onDelete }: { order: Order; onDelete: () => void }) {
         {formatMoney(profit)}
       </td>
       <td>
-        <div className="row-actions">
-          <Link className="btn sm ghost" to={`/orders/${order.id}`}>
-            Открыть
-          </Link>
-          <button
-            type="button"
-            className="btn sm ghost danger"
-            aria-label={`Удалить заказ №${order.number}`}
-            onClick={() => {
-              if (window.confirm(`Удалить заказ №${order.number}?`)) onDelete();
-            }}
-          >
-            Удалить
-          </button>
-        </div>
+        <StatusTransition orderId={order.id} status={order.status} compact />
+      </td>
+      <td>
+        <button
+          type="button"
+          className="btn sm ghost danger"
+          aria-label={`Удалить заказ №${order.number}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (window.confirm(`Удалить заказ №${order.number}?`)) onDelete();
+          }}
+        >
+          Удалить
+        </button>
       </td>
     </tr>
   );
